@@ -1,0 +1,3 @@
+[build]
+  command = "if [ ! -x node_modules/.bin/vite ]; then npm ci; fi; npm run build"
+  publish = "dist"
