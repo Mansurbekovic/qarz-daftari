@@ -1,0 +1,2198 @@
+<!DOCTYPE html>
+<html lang="uz">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1" />
+<title>Qarz Daftari — Mukammal Hisob-Kitob Tizimi</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Fraunces:opsz,wght@9..144,400;9..144,600;9..144,700;9..144,900&family=Manrope:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;600;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --ink:#0E2419;
+  --ink-2:#173A28;
+  --paper:#EFEEE4;
+  --surface:#FFFFFF;
+  --surface-2:#F7F5EC;
+  --gold:#A9821F;
+  --gold-soft:#F1E6C5;
+  --rust:#8B3A2B;
+  --rust-soft:#F3DFD8;
+  --teal:#1F6E5C;
+  --teal-soft:#DCEFE9;
+  --muted:#5C6B62;
+  --border:#DCD8C6;
+  --shadow:0 1px 2px rgba(14,36,25,.06), 0 8px 24px -12px rgba(14,36,25,.18);
+  --radius:14px;
+  --font-display:'Fraunces', serif;
+  --font-body:'Manrope', -apple-system, sans-serif;
+  --font-mono:'JetBrains Mono', monospace;
+  /* Fixed "panel" tones — deliberately NOT theme-swapped. Used for the sidebar,
+     lock/auth backdrop, wallet hero and toasts, which are always meant to be a
+     dark ink surface with light text, in BOTH light and dark app themes. */
+  --panel:#0E2419;
+  --panel-2:#173A28;
+  --panel-text:#F3F1E4;
+  --panel-muted:#A9B8AD;
+  --panel-border:rgba(255,255,255,.12);
+}
+body.dark{
+  --ink:#F3F1E4;
+  --ink-2:#E3DFC9;
+  --paper:#0A1D14;
+  --surface:#132C1E;
+  --surface-2:#183624;
+  --gold:#E3BE5C;
+  --gold-soft:#2B2712;
+  --rust:#E7947C;
+  --rust-soft:#3C2620;
+  --teal:#6FCBB2;
+  --teal-soft:#12332B;
+  --muted:#A9B8AD;
+  --border:#294936;
+  --shadow:0 1px 2px rgba(0,0,0,.35), 0 8px 24px -12px rgba(0,0,0,.55);
+}
+*{box-sizing:border-box; margin:0; padding:0;}
+html,body{height:100%;}
+body{
+  font-family:var(--font-body);
+  background:var(--paper);
+  color:var(--ink);
+  transition:background .3s ease, color .3s ease;
+  overflow-x:hidden;
+}
+.hidden{display:none !important;}
+button{font-family:inherit; cursor:pointer; color:inherit;}
+input,select,textarea{font-family:inherit; font-size:14px; color:var(--ink); background:var(--surface-2);}
+input::placeholder, textarea::placeholder{color:var(--muted); opacity:.75;}
+select option{color:#111; background:#fff;}
+body.dark input[type="date"]::-webkit-calendar-picker-indicator,
+body.dark input[type="time"]::-webkit-calendar-picker-indicator{filter:invert(.9);}
+/* Autofill can silently force a white surface with dark text (fine) or, worse,
+   inherit our --ink text color while keeping its own light background — guard
+   against invisible text either way. */
+input:-webkit-autofill{
+  -webkit-text-fill-color:#111 !important;
+  box-shadow:0 0 0 1000px #fff inset !important;
+}
+::selection{background:var(--gold-soft);}
+
+/* ===== SCROLLBAR ===== */
+::-webkit-scrollbar{width:8px; height:8px;}
+::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+
+/* ===== LOCK / AUTH SCREENS =====
+   NOTE: uses the fixed --panel tokens (not --ink), so this backdrop stays a
+   dark ink color and its text stays light in BOTH light and dark app themes. */
+#authScreen, #lockScreen{
+  position:fixed; inset:0; z-index:999;
+  background:
+    radial-gradient(circle at 20% 20%, rgba(227,190,92,.10), transparent 45%),
+    radial-gradient(circle at 80% 80%, rgba(227,190,92,.08), transparent 40%),
+    var(--panel);
+  display:flex; align-items:center; justify-content:center;
+  flex-direction:column;
+  padding:24px;
+  overflow-y:auto;
+}
+.lock-card{
+  width:100%; max-width:390px;
+  background:var(--surface);
+  border-radius:20px;
+  padding:36px 32px;
+  box-shadow:0 30px 60px -20px rgba(0,0,0,.5);
+  text-align:center;
+  color:var(--ink);
+  margin:auto;
+}
+.lock-emblem{
+  width:56px; height:56px; margin:0 auto 18px;
+  border-radius:14px;
+  background:linear-gradient(145deg, var(--gold), #7a5f16);
+  display:flex; align-items:center; justify-content:center;
+  color:#fff; font-family:var(--font-display); font-weight:700; font-size:22px;
+}
+.lock-title{font-family:var(--font-display); font-size:22px; font-weight:600; margin-bottom:6px;}
+.lock-sub{color:var(--muted); font-size:13.5px; margin-bottom:26px; line-height:1.5;}
+.pin-dots{display:flex; gap:14px; justify-content:center; margin-bottom:24px;}
+.pin-dot{width:14px; height:14px; border-radius:50%; border:2px solid var(--border); transition:.15s;}
+.pin-dot.filled{background:var(--gold); border-color:var(--gold);}
+.pin-dot.shake{animation:shake .4s;}
+@keyframes shake{0%,100%{transform:translateX(0)}20%{transform:translateX(-8px)}40%{transform:translateX(8px)}60%{transform:translateX(-6px)}80%{transform:translateX(6px)}}
+.pin-pad{display:grid; grid-template-columns:repeat(3,1fr); gap:10px; max-width:260px; margin:0 auto;}
+.pin-key{
+  aspect-ratio:1; border-radius:50%; border:1px solid var(--border);
+  background:var(--surface-2); font-size:19px; font-weight:600; color:var(--ink);
+  display:flex; align-items:center; justify-content:center;
+  transition:.12s;
+}
+.pin-key:active{transform:scale(.92); background:var(--gold-soft);}
+.pin-key.wide{font-size:13px; color:var(--muted);}
+.lock-footer{margin-top:18px; font-size:12.5px; color:var(--muted);}
+.lock-footer a{color:var(--gold); cursor:pointer; text-decoration:underline;}
+.lock-error{color:var(--rust); font-size:13px; margin-top:10px; min-height:18px;}
+
+.auth-tabs{display:flex; gap:6px; background:var(--surface-2); border-radius:11px; padding:4px; margin-bottom:22px;}
+.auth-tab{flex:1; padding:9px; border-radius:8px; border:none; background:none; font-weight:700; font-size:13px; color:var(--muted);}
+.auth-tab.active{background:var(--surface); color:var(--ink); box-shadow:var(--shadow);}
+.auth-form{text-align:left; display:flex; flex-direction:column; gap:12px;}
+.auth-form .form-field{margin-bottom:0;}
+.auth-hint{font-size:11.5px; color:var(--muted); text-align:left; line-height:1.5;}
+.pw-wrap{position:relative;}
+.pw-wrap input{width:100%; padding-right:40px;}
+.pw-eye{position:absolute; right:4px; top:50%; transform:translateY(-50%); width:30px; height:30px; border-radius:7px; border:none; background:none; color:var(--muted); display:flex; align-items:center; justify-content:center;}
+.pw-eye svg{width:16px; height:16px;}
+.strength-bar{height:4px; border-radius:3px; background:var(--border); overflow:hidden; margin-top:2px;}
+.strength-bar i{display:block; height:100%; width:0%; background:var(--rust); transition:.2s;}
+
+/* ===== APP SHELL ===== */
+#app{display:flex; min-height:100vh;}
+.sidebar{
+  width:236px; flex-shrink:0;
+  background:linear-gradient(175deg, var(--panel), var(--panel-2));
+  color:var(--panel-text);
+  display:flex; flex-direction:column;
+  padding:24px 16px;
+  position:sticky; top:0; height:100vh;
+}
+.brand{display:flex; align-items:center; gap:10px; padding:4px 8px 26px;}
+.brand-mark{width:36px; height:36px; border-radius:10px; background:linear-gradient(145deg,var(--gold),#7a5f16); display:flex; align-items:center; justify-content:center; font-family:var(--font-display); font-weight:700; color:#fff; flex-shrink:0;}
+.brand-name{font-family:var(--font-display); font-size:17px; font-weight:600; line-height:1.2; color:var(--panel-text);}
+.brand-sub{font-size:10.5px; color:var(--panel-muted); letter-spacing:.05em; text-transform:uppercase;}
+.nav{display:flex; flex-direction:column; gap:2px; flex:1;}
+.nav-item{
+  display:flex; align-items:center; gap:12px;
+  padding:11px 12px; border-radius:10px; border:none; background:none;
+  color:var(--panel-text); opacity:.78; font-size:14px; font-weight:500; text-align:left;
+  transition:.15s;
+}
+.nav-item svg{width:18px; height:18px; flex-shrink:0; opacity:.9;}
+.nav-item:hover{background:rgba(255,255,255,.08); opacity:1;}
+.nav-item.active{background:var(--gold); color:#211a04; font-weight:700; opacity:1;}
+.nav-item.active svg{opacity:1;}
+.nav-badge{margin-left:auto; background:var(--rust); color:#fff; font-size:10px; font-weight:800; padding:2px 6px; border-radius:20px;}
+.sidebar-foot{border-top:1px solid var(--panel-border); padding-top:14px; margin-top:10px; display:flex; flex-direction:column; gap:2px;}
+.sidebar-user{font-size:11.5px; color:var(--panel-muted); padding:0 12px 10px;}
+.sidebar-user b{color:var(--panel-text); display:block; font-size:13px; font-weight:700;}
+
+.main{flex:1; min-width:0; display:flex; flex-direction:column;}
+.topbar{
+  position:sticky; top:0; z-index:20;
+  background:var(--paper); border-bottom:1px solid var(--border);
+  padding:16px 28px; display:flex; align-items:center; gap:14px;
+  backdrop-filter:blur(6px);
+}
+.topbar h1{font-family:var(--font-display); font-size:22px; font-weight:600; flex-shrink:0; color:var(--ink);}
+.search-box{
+  flex:1; max-width:360px; display:flex; align-items:center; gap:8px;
+  background:var(--surface); border:1px solid var(--border); border-radius:10px;
+  padding:9px 12px;
+}
+.search-box svg{width:16px; height:16px; color:var(--muted); flex-shrink:0;}
+.search-box input{border:none; background:none; outline:none; width:100%; color:var(--ink); font-size:13.5px;}
+.spacer{flex:1;}
+.icon-btn{
+  width:38px; height:38px; border-radius:10px; border:1px solid var(--border);
+  background:var(--surface); display:flex; align-items:center; justify-content:center; color:var(--ink);
+  transition:.15s;
+}
+.icon-btn:hover{background:var(--surface-2);}
+.icon-btn svg{width:17px; height:17px;}
+.btn{
+  display:inline-flex; align-items:center; gap:8px;
+  padding:10px 16px; border-radius:10px; border:none; font-size:13.5px; font-weight:700;
+  background:var(--ink); color:var(--paper);
+  transition:.15s;
+}
+.btn:hover{opacity:.88;}
+.btn:disabled{opacity:.45; cursor:not-allowed;}
+.btn svg{width:15px; height:15px;}
+.btn-gold{background:var(--gold); color:#211a04;}
+.btn-teal{background:var(--teal); color:#06251d;}
+.btn-outline{background:none; border:1px solid var(--border); color:var(--ink);}
+.btn-outline:hover{background:var(--surface-2);}
+.btn-danger{background:var(--rust); color:#fff;}
+.btn-sm{padding:7px 12px; font-size:12.5px;}
+.btn-block{width:100%; justify-content:center;}
+
+.page{padding:26px 28px 60px; max-width:1180px; margin:0 auto; width:100%;}
+
+/* ===== DASHBOARD ===== */
+.stat-grid{display:grid; grid-template-columns:repeat(4,1fr); gap:14px; margin-bottom:24px;}
+.stat-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:18px; box-shadow:var(--shadow); position:relative; overflow:hidden;
+}
+.stat-card::before{content:''; position:absolute; right:-18px; top:-18px; width:70px; height:70px; border-radius:50%; background:var(--surface-2);}
+.stat-label{position:relative; font-size:12px; color:var(--muted); text-transform:uppercase; letter-spacing:.04em; margin-bottom:8px; font-weight:600;}
+.stat-value{position:relative; font-family:var(--font-mono); font-size:22px; font-weight:700; color:var(--ink);}
+.stat-value.gold{color:var(--gold);}
+.stat-value.rust{color:var(--rust);}
+.stat-value.teal{color:var(--teal);}
+.stat-note{position:relative; font-size:11.5px; color:var(--muted); margin-top:4px;}
+
+.section-title{font-family:var(--font-display); font-size:17px; font-weight:600; margin:28px 0 14px; display:flex; align-items:center; justify-content:space-between; gap:10px; color:var(--ink);}
+.section-title .link{font-family:var(--font-body); font-size:12.5px; font-weight:600; color:var(--gold); flex-shrink:0;}
+.section-hint{font-family:var(--font-body); font-size:12px; font-weight:500; color:var(--muted); margin-top:-8px; margin-bottom:14px;}
+
+.ledger-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); box-shadow:var(--shadow); overflow:hidden;}
+.ledger-row{
+  display:flex; align-items:center; gap:14px;
+  padding:14px 18px; border-bottom:1px solid var(--border);
+  position:relative;
+}
+.ledger-row:last-child{border-bottom:none;}
+.ledger-row::before{content:''; position:absolute; left:0; top:0; bottom:0; width:3px; background:var(--border);}
+.ledger-row.type-debt::before{background:var(--rust);}
+.ledger-row.type-payment::before{background:var(--gold);}
+.ledger-row.type-topup::before, .ledger-row.type-withdraw::before{background:var(--teal);}
+.avatar{
+  width:38px; height:38px; border-radius:10px; flex-shrink:0;
+  background:var(--gold-soft); color:var(--gold);
+  display:flex; align-items:center; justify-content:center;
+  font-weight:800; font-family:var(--font-display); font-size:15px;
+}
+.row-main{flex:1; min-width:0;}
+.row-title{font-weight:700; font-size:14px; color:var(--ink);}
+.row-sub{font-size:12px; color:var(--muted); margin-top:2px;}
+.row-amount{font-family:var(--font-mono); font-weight:700; font-size:14.5px; text-align:right; white-space:nowrap;}
+.row-amount.rust{color:var(--rust);}
+.row-amount.gold{color:var(--gold);}
+.row-amount.teal{color:var(--teal);}
+
+.empty-state{
+  text-align:center; padding:50px 20px; color:var(--muted);
+}
+.empty-state svg{width:40px; height:40px; margin-bottom:12px; opacity:.5;}
+.empty-state .t{font-weight:700; color:var(--ink); margin-bottom:4px; font-size:15px;}
+.empty-state .s{font-size:13px; max-width:320px; margin:0 auto;}
+
+/* ===== CLIENTS GRID ===== */
+.client-toolbar{display:flex; gap:10px; align-items:center; margin-bottom:18px; flex-wrap:wrap;}
+.chip-group{display:flex; gap:6px; flex-wrap:wrap;}
+.chip{
+  padding:7px 13px; border-radius:20px; border:1px solid var(--border); background:var(--surface);
+  font-size:12.5px; font-weight:600; color:var(--muted);
+}
+.chip.active{background:var(--ink); color:var(--paper); border-color:var(--ink);}
+.client-grid{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:14px;}
+.client-card{
+  background:var(--surface); border:1px solid var(--border); border-radius:var(--radius);
+  padding:16px; box-shadow:var(--shadow); transition:.15s; text-align:left;
+}
+.client-card:hover{transform:translateY(-2px); box-shadow:0 12px 28px -14px rgba(14,36,25,.25);}
+.client-card-top{display:flex; gap:10px; align-items:center; margin-bottom:12px;}
+.client-name{font-weight:700; font-size:14.5px; color:var(--ink);}
+.client-phone{font-size:11.5px; color:var(--muted);}
+.client-balance-label{font-size:11px; color:var(--muted); text-transform:uppercase; letter-spacing:.03em;}
+.client-balance{font-family:var(--font-mono); font-weight:700; font-size:18px; margin-top:2px;}
+.badge{display:inline-flex; align-items:center; gap:4px; font-size:10.5px; font-weight:700; padding:3px 9px; border-radius:20px; margin-top:8px;}
+.badge.overdue{background:var(--rust-soft); color:var(--rust);}
+.badge.clean{background:var(--gold-soft); color:var(--gold);}
+.badge.iowe{background:var(--teal-soft); color:var(--teal);}
+
+/* ===== CLIENT DETAIL ===== */
+.detail-head{display:flex; align-items:flex-start; gap:16px; margin-bottom:22px; flex-wrap:wrap;}
+.detail-avatar{width:58px; height:58px; border-radius:14px; background:var(--gold-soft); color:var(--gold); font-family:var(--font-display); font-weight:800; font-size:22px; display:flex; align-items:center; justify-content:center;}
+.detail-name{font-family:var(--font-display); font-size:24px; font-weight:600; color:var(--ink);}
+.detail-meta{font-size:13px; color:var(--muted); margin-top:2px;}
+.balance-box{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); text-align:center; min-width:180px;}
+.balance-box .v{font-family:var(--font-mono); font-size:26px; font-weight:800;}
+.action-hint{background:var(--surface-2); border:1px solid var(--border); border-radius:12px; padding:12px 14px; font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:18px;}
+
+.form-grid{display:grid; grid-template-columns:1fr 1fr; gap:12px;}
+.form-field{display:flex; flex-direction:column; gap:6px; margin-bottom:12px;}
+.form-field label{font-size:12.5px; font-weight:700; color:var(--muted);}
+.form-field input, .form-field select, .form-field textarea{
+  padding:10px 12px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); color:var(--ink); outline:none;
+}
+.form-field input:focus, .form-field select:focus, .form-field textarea:focus{border-color:var(--gold);}
+.form-field textarea{resize:vertical; min-height:60px;}
+.form-check{display:flex; align-items:flex-start; gap:9px; font-size:12.5px; color:var(--muted); line-height:1.5; margin-bottom:14px;}
+.form-check input{margin-top:2px; width:15px; height:15px; accent-color:var(--gold); flex-shrink:0;}
+.type-toggle{display:flex; gap:8px;}
+.type-toggle button{flex:1; padding:11px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); font-weight:700; font-size:13px; color:var(--muted);}
+.type-toggle button .small{display:block; font-weight:500; font-size:10.5px; margin-top:2px;}
+.type-toggle button.sel-debt.active{background:var(--rust-soft); color:var(--rust); border-color:var(--rust);}
+.type-toggle button.sel-payment.active{background:var(--gold-soft); color:var(--gold); border-color:var(--gold);}
+.type-toggle button.sel-a.active{background:var(--rust-soft); color:var(--rust); border-color:var(--rust);}
+.type-toggle button.sel-b.active{background:var(--teal-soft); color:var(--teal); border-color:var(--teal);}
+.relation-toggle{display:flex; gap:8px; margin-bottom:14px;}
+.relation-toggle button{flex:1; padding:12px 8px; border-radius:9px; border:1px solid var(--border); background:var(--surface-2); font-weight:700; font-size:12.5px; color:var(--muted); text-align:left; line-height:1.3;}
+.relation-toggle button .small{display:block; font-weight:500; font-size:10.5px; color:var(--muted); margin-top:2px;}
+.relation-toggle button.active.sel-owed{background:var(--rust-soft); color:var(--rust); border-color:var(--rust);}
+.relation-toggle button.active.sel-owed .small{color:var(--rust);}
+.relation-toggle button.active.sel-iowe{background:var(--teal-soft); color:var(--teal); border-color:var(--teal);}
+.relation-toggle button.active.sel-iowe .small{color:var(--teal);}
+.tx-preview{background:var(--surface-2); border:1px dashed var(--border); border-radius:10px; padding:12px 14px; font-size:12.5px; color:var(--ink); line-height:1.6; margin-bottom:14px;}
+.tx-preview b{font-family:var(--font-mono);}
+
+/* ===== MODAL ===== */
+.modal-backdrop{position:fixed; inset:0; background:rgba(14,36,25,.55); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(2px);}
+.modal{background:var(--surface); color:var(--ink); border-radius:18px; width:100%; max-width:420px; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,.4);}
+.modal.wide{max-width:520px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px 4px;}
+.modal-head h3{font-family:var(--font-display); font-size:18px; font-weight:600; color:var(--ink);}
+.modal-close{width:30px; height:30px; border-radius:8px; border:none; background:var(--surface-2); color:var(--ink); display:flex; align-items:center; justify-content:center;}
+.modal-body{padding:16px 22px 22px;}
+.modal-body p{color:var(--muted);}
+.modal-actions{display:flex; gap:10px; margin-top:6px;}
+.modal-actions .btn{flex:1; justify-content:center;}
+.step-dots{display:flex; gap:6px; padding:0 22px 4px;}
+.step-dots span{height:4px; flex:1; border-radius:3px; background:var(--border);}
+.step-dots span.on{background:var(--gold);}
+
+/* ===== TOAST ===== (fixed dark tone: never flips with theme, so text stays legible) */
+#toastRoot{position:fixed; bottom:22px; right:22px; z-index:500; display:flex; flex-direction:column; gap:8px;}
+.toast{background:var(--panel); color:var(--panel-text); padding:12px 18px; border-radius:10px; font-size:13px; font-weight:600; box-shadow:0 10px 30px -8px rgba(0,0,0,.4); animation:toastIn .25s ease;}
+.toast.error{background:var(--rust); color:#fff;}
+@keyframes toastIn{from{opacity:0; transform:translateY(10px);} to{opacity:1; transform:translateY(0);}}
+
+/* ===== SETTINGS ===== */
+.settings-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:20px; box-shadow:var(--shadow); margin-bottom:16px;}
+.settings-row{display:flex; align-items:center; justify-content:space-between; padding:12px 0; border-bottom:1px solid var(--border); gap:12px;}
+.settings-row:last-child{border-bottom:none;}
+.settings-row .t{font-weight:700; font-size:14px; color:var(--ink);}
+.settings-row .s{font-size:12px; color:var(--muted); margin-top:2px;}
+.switch{width:44px; height:25px; border-radius:20px; background:var(--border); position:relative; border:none; flex-shrink:0;}
+.switch.on{background:var(--gold);}
+.switch::after{content:''; position:absolute; width:19px; height:19px; border-radius:50%; background:#fff; top:3px; left:3px; transition:.2s;}
+.switch.on::after{left:22px;}
+.accent-row{display:flex; gap:8px; flex-wrap:wrap;}
+.accent-dot{width:28px; height:28px; border-radius:50%; border:2px solid transparent; flex-shrink:0;}
+.accent-dot.on{border-color:var(--ink);}
+
+/* ===== STATS ===== */
+.chart-card{background:var(--surface); border:1px solid var(--border); border-radius:var(--radius); padding:22px; box-shadow:var(--shadow); margin-bottom:20px;}
+.legend{display:flex; gap:18px; margin-top:14px; font-size:12.5px; color:var(--muted); flex-wrap:wrap;}
+.legend span{display:inline-flex; align-items:center; gap:6px;}
+.dot{width:9px; height:9px; border-radius:50%;}
+
+/* ===== WALLET / CARDS ===== (hero uses fixed --panel tokens, not --ink) */
+.wallet-hero{
+  background:linear-gradient(135deg, var(--panel) 0%, var(--panel-2) 100%);
+  color:var(--panel-text); border-radius:var(--radius); padding:26px; box-shadow:var(--shadow); margin-bottom:22px;
+  display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;
+}
+.wallet-hero .lbl{font-size:12px; text-transform:uppercase; letter-spacing:.06em; color:var(--panel-muted); margin-bottom:6px;}
+.wallet-hero .val{font-family:var(--font-mono); font-size:30px; font-weight:800; color:var(--gold);}
+.wallet-hero .sub{font-size:11.5px; color:var(--panel-muted); margin-top:6px;}
+.wallet-actions{display:flex; gap:10px; flex-wrap:wrap;}
+.disclaimer{
+  display:flex; gap:10px; align-items:flex-start; background:var(--gold-soft); color:var(--ink);
+  border:1px solid var(--gold); border-radius:12px; padding:12px 14px; font-size:12px; line-height:1.5; margin-bottom:20px;
+}
+.disclaimer svg{width:18px; height:18px; flex-shrink:0; color:var(--gold); margin-top:1px;}
+.cards-row{display:grid; grid-template-columns:repeat(auto-fill,minmax(240px,1fr)); gap:16px; margin-bottom:10px;}
+.bank-card{
+  position:relative; border-radius:16px; padding:18px; height:150px;
+  color:#fff; display:flex; flex-direction:column; justify-content:space-between;
+  box-shadow:0 14px 30px -12px rgba(0,0,0,.35); overflow:hidden; cursor:pointer;
+  border:none; text-align:left; width:100%;
+}
+.bank-card::after{content:''; position:absolute; right:-30px; top:-30px; width:140px; height:140px; border-radius:50%; background:rgba(255,255,255,.08);}
+.bank-card.frozen{filter:grayscale(.75) brightness(.75);}
+.bank-card .bk-top{display:flex; justify-content:space-between; align-items:flex-start; font-size:12px; font-weight:700; letter-spacing:.03em;}
+.bank-card .bk-type{font-size:9.5px; font-weight:700; letter-spacing:.06em; text-transform:uppercase; background:rgba(255,255,255,.18); padding:2px 8px; border-radius:20px; margin-top:4px; display:inline-block;}
+.bank-card .bk-num{font-family:var(--font-mono); font-size:16px; letter-spacing:.12em;}
+.bank-card .bk-bal{font-family:var(--font-mono); font-size:13px; font-weight:700; opacity:.92;}
+.bank-card .bk-bottom{display:flex; justify-content:space-between; align-items:flex-end; font-size:11px;}
+.bank-card .bk-holder{text-transform:uppercase; font-weight:700;}
+.bank-card .bk-del{position:absolute; top:10px; right:10px; width:24px; height:24px; border-radius:7px; background:rgba(0,0,0,.25); border:none; color:#fff; display:flex; align-items:center; justify-content:center; opacity:0; transition:.15s; z-index:2;}
+.bank-card:hover .bk-del{opacity:1;}
+.bank-card.ghost{
+  border:1.5px dashed var(--border); background:var(--surface-2); color:var(--muted);
+  display:flex; align-items:center; justify-content:center; flex-direction:column; gap:8px; font-weight:700; font-size:13px; box-shadow:none; cursor:pointer;
+}
+.bank-card.ghost svg{width:22px; height:22px;}
+.card-select{display:grid; gap:8px; margin-bottom:14px;}
+.card-select label.opt{
+  display:flex; align-items:center; gap:10px; padding:10px 12px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2); cursor:pointer;
+}
+.card-select label.opt.checked{border-color:var(--gold); background:var(--gold-soft);}
+.card-select label.opt input{accent-color:var(--gold);}
+.card-select .mini-card{width:34px; height:24px; border-radius:5px; flex-shrink:0;}
+.card-select .opt-name{font-weight:700; font-size:13px; flex:1;}
+.card-select .opt-bal{font-family:var(--font-mono); font-size:12px; color:var(--muted);}
+.type-pick{display:grid; grid-template-columns:1fr 1fr 1fr; gap:8px; margin-bottom:14px;}
+.type-pick button{padding:12px 6px; border-radius:10px; border:1px solid var(--border); background:var(--surface-2); font-size:12px; font-weight:700; color:var(--muted); text-align:center; line-height:1.4;}
+.type-pick button span{display:block; font-size:18px; margin-bottom:3px;}
+.type-pick button.active{background:var(--gold-soft); color:var(--gold); border-color:var(--gold);}
+
+/* ===== MOBILE ===== */
+@media(max-width:860px){
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+  #app{flex-direction:column;}
+  .sidebar{
+    position:fixed; bottom:0; left:0; right:0; top:auto; height:auto; width:100%;
+    flex-direction:row; align-items:center; justify-content:space-around; padding:8px 6px;
+    z-index:100; border-top:1px solid var(--panel-border);
+  }
+  .brand, .sidebar-foot, .sidebar-user{display:none;}
+  .nav{flex-direction:row; flex:none; width:100%; justify-content:space-around; overflow-x:auto;}
+  .nav-item{flex-direction:column; gap:4px; font-size:9.5px; padding:8px 6px; flex:1; min-width:52px;}
+  .nav-badge{position:absolute; top:2px; right:10px; margin-left:0;}
+  .main{padding-bottom:70px;}
+  .topbar{padding:14px 16px;}
+  .topbar h1{font-size:18px;}
+  .page{padding:18px 16px 40px;}
+  .search-box{max-width:none;}
+  .client-grid{grid-template-columns:1fr 1fr;}
+  .wallet-hero{flex-direction:column; align-items:flex-start;}
+}
+@media(max-width:520px){
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .client-grid{grid-template-columns:1fr;}
+  .topbar h1{display:none;}
+  .cards-row{grid-template-columns:1fr;}
+  .type-pick{grid-template-columns:1fr;}
+}
+</style>
+</head>
+<body>
+
+<!-- ===================== AUTH SCREEN (register / login) ===================== -->
+<div id="authScreen">
+  <div class="lock-card">
+    <div class="lock-emblem">QD</div>
+    <div class="lock-title">Qarz Daftari</div>
+    <div class="lock-sub" id="authSub">Hisobingizga kiring yoki yangi hisob yarating.</div>
+    <div class="auth-tabs" id="authTabs">
+      <button class="auth-tab" id="tabLogin">Kirish</button>
+      <button class="auth-tab" id="tabRegister">Ro'yxatdan o'tish</button>
+    </div>
+    <form class="auth-form" id="loginForm">
+      <div class="form-field"><label>Foydalanuvchi nomi</label><input type="text" id="loginUser" autocomplete="username" placeholder="masalan: aziz_biznes"/></div>
+      <div class="form-field"><label>Parol</label>
+        <div class="pw-wrap"><input type="password" id="loginPass" autocomplete="current-password" placeholder="••••••••"/>
+          <button type="button" class="pw-eye" data-target="loginPass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+      </div>
+      <div class="lock-error" id="authError"></div>
+      <button type="submit" class="btn btn-gold btn-block">Kirish</button>
+    </form>
+    <form class="auth-form hidden" id="registerForm">
+      <div class="form-field"><label>Biznes / do'kon nomi</label><input type="text" id="regBiz" placeholder="masalan: Aziz Mobile"/></div>
+      <div class="form-field"><label>Foydalanuvchi nomi</label><input type="text" id="regUser" autocomplete="username" placeholder="lotin harflari, bo'shliqsiz"/></div>
+      <div class="form-field"><label>Parol</label>
+        <div class="pw-wrap"><input type="password" id="regPass" autocomplete="new-password" placeholder="kamida 4 belgi"/>
+          <button type="button" class="pw-eye" data-target="regPass"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M1 12s4-7 11-7 11 7 11 7-4 7-11 7-11-7-11-7z"/><circle cx="12" cy="12" r="3"/></svg></button>
+        </div>
+        <div class="strength-bar"><i id="pwStrengthBar"></i></div>
+      </div>
+      <div class="form-field"><label>Parolni tasdiqlang</label><input type="password" id="regPass2" autocomplete="new-password" placeholder="••••••••"/></div>
+      <div class="lock-error" id="authError2"></div>
+      <button type="submit" class="btn btn-gold btn-block">Hisob yaratish</button>
+      <div class="auth-hint">Ma'lumotlaringiz faqat shu qurilmadagi shaxsiy xotirangizda, parolingiz esa xesh (shifrlangan) ko'rinishda saqlanadi.</div>
+    </form>
+  </div>
+</div>
+
+<!-- ===================== LOCK SCREEN (PIN) ===================== -->
+<div id="lockScreen" class="hidden">
+  <div class="lock-card">
+    <div class="lock-emblem">QD</div>
+    <div class="lock-title" id="lockTitle">Xush kelibsiz</div>
+    <div class="lock-sub" id="lockSub">Ma'lumotlaringizni himoya qilish uchun 4 xonali PIN-kod o'rnating.</div>
+    <div class="pin-dots" id="pinDots"></div>
+    <div class="lock-error" id="lockError"></div>
+    <div class="pin-pad" id="pinPad"></div>
+    <div class="lock-footer" id="lockFooter"></div>
+  </div>
+</div>
+
+<!-- ===================== APP ===================== -->
+<div id="app" class="hidden">
+  <aside class="sidebar">
+    <div class="brand">
+      <div class="brand-mark">QD</div>
+      <div>
+        <div class="brand-name">Qarz Daftari</div>
+        <div class="brand-sub" id="bizNameSmall">Hisob-kitob tizimi</div>
+      </div>
+    </div>
+    <nav class="nav" id="navList"></nav>
+    <div class="sidebar-foot">
+      <div class="sidebar-user"><b id="sideUsername">—</b>hisobingiz</div>
+      <button class="nav-item" id="lockNowBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="4" y="10" width="16" height="10" rx="2"/><path d="M8 10V7a4 4 0 0 1 8 0v3"/></svg>
+        Qulflash
+      </button>
+      <button class="nav-item" id="logoutBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><path d="M16 17l5-5-5-5"/><path d="M21 12H9"/></svg>
+        Chiqish
+      </button>
+    </div>
+  </aside>
+
+  <div class="main">
+    <header class="topbar">
+      <h1 id="pageTitle">Bosh sahifa</h1>
+      <div class="search-box">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="11" cy="11" r="7"/><path d="m21 21-4.3-4.3"/></svg>
+        <input type="text" id="globalSearch" placeholder="Mijoz ismi yoki telefon raqami..." />
+      </div>
+      <div class="spacer"></div>
+      <button class="icon-btn" id="themeToggle" title="Tema">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.9 4.9l1.4 1.4M17.7 17.7l1.4 1.4M2 12h2M20 12h2M4.9 19.1l1.4-1.4M17.7 6.3l1.4-1.4"/></svg>
+      </button>
+      <button class="btn btn-gold" id="addClientBtn">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.4"><path d="M12 5v14M5 12h14"/></svg>
+        Mijoz qo'shish
+      </button>
+    </header>
+    <main class="page" id="pageContent"></main>
+  </div>
+</div>
+
+<div id="modalRoot"></div>
+<div id="toastRoot"></div>
+
+<script>
+/* ========================================================================
+   QARZ DAFTARI — to'liq mustaqil (single-file) veb-ilova
+   Ma'lumotlar window.storage orqali saqlanadi (shaxsiy, faqat sizga tegishli)
+   ======================================================================== */
+
+const $ = (sel, root=document) => root.querySelector(sel);
+const $$ = (sel, root=document) => Array.from(root.querySelectorAll(sel));
+
+if(!window.storage){
+  console.warn("window.storage topilmadi — vaqtinchalik xotiradagi saqlash ishlatilmoqda.");
+  const __mem = {};
+  window.storage = {
+    async get(key, shared){ const k=(shared?"s:":"p:")+key; if(!(k in __mem)) return null; return {key, value:__mem[k], shared:!!shared}; },
+    async set(key, value, shared){ const k=(shared?"s:":"p:")+key; __mem[k]=value; return {key, value, shared:!!shared}; },
+    async delete(key, shared){ const k=(shared?"s:":"p:")+key; const existed = k in __mem; delete __mem[k]; return {key, deleted:existed, shared:!!shared}; },
+    async list(prefix, shared){ const pfx=(shared?"s:":"p:")+(prefix||""); return {keys:Object.keys(__mem).filter(k=>k.startsWith(pfx)).map(k=>k.slice(2)), prefix, shared:!!shared}; },
+  };
+}
+
+let DB = null;
+let CURRENT_USER = null;
+let ACCOUNTS = [];
+let unlocked = false;
+let pinBuffer = "";
+let pinMode = "enter";
+let pendingPin = "";
+let currentPage = "dashboard";
+let currentClientId = null;
+let clientFilter = "all";
+let searchQuery = "";
+let autoLockTimer = null;
+
+const NAV_ITEMS = [
+  {id:"dashboard", label:"Bosh sahifa", icon:'<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>'},
+  {id:"clients", label:"Mijozlar", icon:'<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15.5 14.2c2.7.4 4.6 2.4 4.6 5.3"/>'},
+  {id:"transactions", label:"Tranzaksiyalar", icon:'<path d="M4 7h13l-3-3M20 17H7l3 3"/>'},
+  {id:"wallet", label:"Kartalar", icon:'<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><circle cx="16.5" cy="14.2" r="1.2" fill="currentColor" stroke="none"/>'},
+  {id:"stats", label:"Statistika", icon:'<path d="M4 20V10M11 20V4M18 20v-7"/>'},
+  {id:"settings", label:"Sozlamalar", icon:'<circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 1 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06A1.65 1.65 0 0 0 4.68 15a1.65 1.65 0 0 0-1.51-1H3a2 2 0 1 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06A1.65 1.65 0 0 0 9 4.6a1.65 1.65 0 0 0 1-1.51V3a2 2 0 1 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06A1.65 1.65 0 0 0 19.4 9c.14.44.42.82.8 1.09.32.2.7.31 1.1.31H21a2 2 0 1 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/>'},
+];
+
+const BANK_PRESETS = {
+  "Uzcard": {grad:"linear-gradient(135deg,#1F6E5C,#0A3A2E)"},
+  "Humo": {grad:"linear-gradient(135deg,#5B3A8B,#2A1750)"},
+  "Visa": {grad:"linear-gradient(135deg,#1B3E7A,#0A1F45)"},
+  "Mastercard": {grad:"linear-gradient(135deg,#B23A2B,#6E1E14)"},
+  "Boshqa": {grad:"linear-gradient(135deg,#A9821F,#5C4610)"},
+};
+const CARD_TYPES = {
+  virtual: {label:"Virtual karta", emoji:"✨", desc:"Ilova ichida darhol yaratiladi"},
+  plastic: {label:"Plastik karta", emoji:"💳", desc:"Sizda mavjud jismoniy karta"},
+  online:  {label:"Onlayn karta", emoji:"🌐", desc:"Faqat onlayn to'lovlar uchun"},
+};
+
+/* -------------------- UTIL -------------------- */
+function uid(){ return Date.now().toString(36) + Math.random().toString(36).slice(2,8); }
+function fmtMoney(n){
+  n = Math.round(Number(n)||0);
+  const neg = n < 0; n = Math.abs(n);
+  const cur = (DB && DB.currency) ? DB.currency : "so'm";
+  return (neg?"-":"") + n.toString().replace(/\B(?=(\d{3})+(?!\d))/g, " ") + " " + cur;
+}
+function fmtDate(d){
+  if(!d) return "—";
+  const dt = new Date(d);
+  const months = ["yan","fev","mar","apr","may","iyun","iyul","avg","sen","okt","noy","dek"];
+  return `${dt.getDate()} ${months[dt.getMonth()]} ${dt.getFullYear()}`;
+}
+function todayISO(){ return new Date().toISOString().slice(0,10); }
+function initials(name){
+  return name.trim().split(/\s+/).map(w=>w[0]).slice(0,2).join("").toUpperCase();
+}
+async function sha256(text){
+  try{
+    if(window.crypto && window.crypto.subtle){
+      const enc = new TextEncoder().encode(text);
+      const buf = await crypto.subtle.digest("SHA-256", enc);
+      return Array.from(new Uint8Array(buf)).map(b=>b.toString(16).padStart(2,"0")).join("");
+    }
+  }catch(e){ /* pastga o'tib zaxira xeshga qaytamiz */ }
+  let h1 = 0, h2 = 0;
+  for(let i=0;i<text.length;i++){
+    const c = text.charCodeAt(i);
+    h1 = (Math.imul(h1,31)+c)|0;
+    h2 = (Math.imul(h2,131)+c)|0;
+  }
+  return "fb" + (h1>>>0).toString(16).padStart(8,"0") + (h2>>>0).toString(16).padStart(8,"0");
+}
+function toast(msg, type=""){
+  const root = $("#toastRoot");
+  const el = document.createElement("div");
+  el.className = "toast" + (type ? " "+type : "");
+  el.textContent = msg;
+  root.appendChild(el);
+  setTimeout(()=>{ el.style.opacity="0"; el.style.transition=".3s"; setTimeout(()=>el.remove(),300); }, 2600);
+}
+function escHtml(s){
+  return String(s).replace(/[&<>"']/g, c=>({"&":"&amp;","<":"&lt;",">":"&gt;",'"':"&quot;","'":"&#39;"}[c]));
+}
+function genCardNumber(bank){
+  // Ilova ichidagi izlash uchun mos formatdagi (lekin haqiqiy bank tarmog'iga ulanmagan) raqam.
+  const prefix = {Uzcard:"8600", Humo:"9860", Visa:"4231", Mastercard:"5412", Boshqa:"6262"}[bank] || "6262";
+  let rest = "";
+  for(let i=0;i<12;i++) rest += Math.floor(Math.random()*10);
+  return prefix + rest;
+}
+function maskCardNumber(num){
+  return num.replace(/(.{4})/g,"$1 ").trim().replace(/\d(?=\d{4})/g,"•");
+}
+function futureExpiry(years=4){
+  const d = new Date(); d.setFullYear(d.getFullYear()+years);
+  return String(d.getMonth()+1).padStart(2,"0") + "/" + String(d.getFullYear()).slice(-2);
+}
+
+/* -------------------- ACCOUNTS / AUTH STORAGE -------------------- */
+const ACCOUNTS_KEY = "qd-accounts-index";
+const SESSION_KEY = "qd-session";
+function dbKeyFor(username){ return "qd-db::" + username; }
+
+async function loadAccounts(){
+  try{
+    const res = await window.storage.get(ACCOUNTS_KEY, false);
+    ACCOUNTS = res && res.value ? JSON.parse(res.value) : [];
+  }catch(e){ ACCOUNTS = []; }
+}
+async function saveAccounts(){
+  try{ await window.storage.set(ACCOUNTS_KEY, JSON.stringify(ACCOUNTS), false); }
+  catch(e){ toast("Hisoblar ro'yxatini saqlashda xatolik", "error"); }
+}
+async function loadSession(){
+  try{
+    const res = await window.storage.get(SESSION_KEY, false);
+    return res && res.value ? JSON.parse(res.value).username : null;
+  }catch(e){ return null; }
+}
+async function saveSession(username){
+  try{ await window.storage.set(SESSION_KEY, JSON.stringify({username}), false); }catch(e){}
+}
+async function clearSession(){
+  try{ await window.storage.delete(SESSION_KEY, false); }catch(e){}
+}
+
+/* -------------------- APP DB (per account) -------------------- */
+function defaultDB(){
+  return {
+    pinHash: null,
+    businessName: "Mening biznesim",
+    theme: "light",
+    accent: "gold",
+    autoLockMinutes: 5,
+    currency: "so'm",
+    notifications: true,
+    ageConfirmed: false,
+    clients: [],
+    transactions: [],
+    cards: [],
+    cardTx: [],
+  };
+}
+async function loadDB(username){
+  try{
+    const res = await window.storage.get(dbKeyFor(username), false);
+    if(res && res.value){ DB = {...defaultDB(), ...JSON.parse(res.value)}; }
+    else { DB = defaultDB(); }
+  }catch(e){ DB = defaultDB(); }
+  if(!DB.clients) DB.clients = [];
+  if(!DB.transactions) DB.transactions = [];
+  if(!DB.cards) DB.cards = [];
+  if(!DB.cardTx) DB.cardTx = [];
+  // Eski (oldingi versiya) yagona "wallet" balansini bitta kartaga ko'chirib olamiz.
+  if(DB.wallet && typeof DB.wallet.balance === "number" && DB.wallet.balance !== 0 && DB.cards.length===0){
+    DB.cards.push({id:uid(), bank:"Boshqa", type:"virtual", holder:DB.businessName||"Mening kartam", number:genCardNumber("Boshqa"), last4:"0000", expiry:futureExpiry(), balance:DB.wallet.balance, frozen:false, physicalStatus:null, createdAt:new Date().toISOString()});
+  }
+  DB.clients.forEach(c=>{ if(!c.relation) c.relation = "owed_to_me"; });
+  DB.cards.forEach(c=>{ if(typeof c.balance!=="number") c.balance = 0; if(c.frozen===undefined) c.frozen=false; });
+}
+let saveTimer = null;
+async function saveDB(){
+  clearTimeout(saveTimer);
+  return new Promise(resolve=>{
+    saveTimer = setTimeout(async ()=>{
+      try{ await window.storage.set(dbKeyFor(CURRENT_USER), JSON.stringify(DB), false); }
+      catch(e){ toast("Saqlashda xatolik yuz berdi", "error"); }
+      resolve();
+    }, 120);
+  });
+}
+
+/* -------------------- BALANCE / STATS -------------------- */
+function clientTransactions(clientId){
+  return DB.transactions.filter(t=>t.clientId===clientId).sort((a,b)=> new Date(b.date)-new Date(a.date));
+}
+function clientBalance(clientId){
+  let bal = 0;
+  for(const t of DB.transactions){
+    if(t.clientId!==clientId) continue;
+    bal += t.type==="debt" ? Number(t.amount) : -Number(t.amount);
+  }
+  return bal;
+}
+function clientIsOverdue(clientId){
+  const bal = clientBalance(clientId);
+  if(bal<=0) return false;
+  const today = todayISO();
+  return DB.transactions.some(t=> t.clientId===clientId && t.type==="debt" && t.dueDate && t.dueDate < today);
+}
+function totals(){
+  let owedToMe=0, iOwe=0, overdueCount=0, overdueSum=0;
+  for(const c of DB.clients){
+    const bal = clientBalance(c.id);
+    if(c.relation==="i_owe"){ if(bal>0) iOwe += bal; }
+    else { if(bal>0) owedToMe += bal; }
+    if(clientIsOverdue(c.id)){ overdueCount++; overdueSum += bal; }
+  }
+  return {owedToMe, iOwe, net: owedToMe-iOwe, overdueCount, overdueSum, clientCount: DB.clients.length, txCount: DB.transactions.length};
+}
+function totalCardBalance(){ return DB.cards.reduce((s,c)=>s+Number(c.balance||0),0); }
+
+/* -------------------- AUTH SCREEN LOGIC -------------------- */
+function showAuthScreen(){
+  unlocked = false;
+  $("#lockScreen").classList.add("hidden");
+  $("#app").classList.add("hidden");
+  $("#authScreen").classList.remove("hidden");
+  if(ACCOUNTS.length===0){ switchAuthTab("register"); }
+  else{ switchAuthTab("login"); }
+}
+function switchAuthTab(which){
+  $("#tabLogin").classList.toggle("active", which==="login");
+  $("#tabRegister").classList.toggle("active", which==="register");
+  $("#loginForm").classList.toggle("hidden", which!=="login");
+  $("#registerForm").classList.toggle("hidden", which!=="register");
+  $("#authSub").textContent = which==="login" ? "Hisobingizga kiring." : "Yangi biznes hisobi yarating.";
+  $("#authError").textContent = ""; $("#authError2").textContent = "";
+}
+$("#tabLogin").addEventListener("click", ()=>switchAuthTab("login"));
+$("#tabRegister").addEventListener("click", ()=>switchAuthTab("register"));
+
+$$(".pw-eye").forEach(btn=>{
+  btn.addEventListener("click", ()=>{
+    const target = $("#"+btn.dataset.target);
+    target.type = target.type==="password" ? "text" : "password";
+  });
+});
+$("#regPass").addEventListener("input", (e)=>{
+  const v = e.target.value;
+  let score = 0;
+  if(v.length>=4) score+=25;
+  if(v.length>=8) score+=25;
+  if(/[0-9]/.test(v)) score+=25;
+  if(/[A-Z]/.test(v) || /[^a-zA-Z0-9]/.test(v)) score+=25;
+  const bar = $("#pwStrengthBar");
+  bar.style.width = score+"%";
+  bar.style.background = score<50 ? "var(--rust)" : score<100 ? "var(--gold)" : "var(--teal)";
+});
+
+$("#loginForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const err = $("#authError");
+  try{
+    const uname = $("#loginUser").value.trim().toLowerCase();
+    const pass = $("#loginPass").value;
+    if(!uname || !pass){ err.textContent = "Foydalanuvchi nomi va parolni kiriting."; return; }
+    const acc = ACCOUNTS.find(a=>a.username===uname);
+    if(!acc){ err.textContent = "Bunday foydalanuvchi topilmadi."; return; }
+    const hash = await sha256(pass);
+    if(hash !== acc.passHash){ err.textContent = "Parol noto'g'ri."; return; }
+    err.textContent = "";
+    await loginAs(uname);
+  }catch(ex){
+    console.error(ex);
+    err.textContent = "Kutilmagan xatolik yuz berdi: " + (ex && ex.message ? ex.message : ex);
+  }
+});
+
+$("#registerForm").addEventListener("submit", async (e)=>{
+  e.preventDefault();
+  const err = $("#authError2");
+  try{
+    const biz = $("#regBiz").value.trim() || "Mening biznesim";
+    const uname = $("#regUser").value.trim().toLowerCase().replace(/\s+/g,"");
+    const pass = $("#regPass").value;
+    const pass2 = $("#regPass2").value;
+    if(!uname || !/^[a-z0-9_.]{3,}$/.test(uname)){ err.textContent = "Foydalanuvchi nomi kamida 3 belgi, faqat lotin harf/raqam."; return; }
+    if(ACCOUNTS.some(a=>a.username===uname)){ err.textContent = "Bu foydalanuvchi nomi band."; return; }
+    if(pass.length<4){ err.textContent = "Parol kamida 4 belgidan iborat bo'lsin."; return; }
+    if(pass!==pass2){ err.textContent = "Parollar mos kelmadi."; return; }
+    err.textContent = "";
+    const passHash = await sha256(pass);
+    ACCOUNTS.push({username:uname, businessName:biz, passHash, createdAt:new Date().toISOString()});
+    await saveAccounts();
+    DB = defaultDB();
+    DB.businessName = biz;
+    CURRENT_USER = uname;
+    await saveDB();
+    await saveSession(uname);
+    toast("Hisob yaratildi. Endi PIN-kod o'rnating.");
+    finishLoginToPin();
+  }catch(ex){
+    console.error(ex);
+    err.textContent = "Kutilmagan xatolik yuz berdi: " + (ex && ex.message ? ex.message : ex);
+  }
+});
+
+async function loginAs(username){
+  CURRENT_USER = username;
+  await loadDB(username);
+  await saveSession(username);
+  finishLoginToPin();
+}
+function finishLoginToPin(){
+  $("#authScreen").classList.add("hidden");
+  document.body.classList.toggle("dark", DB.theme==="dark");
+  $("#bizNameSmall").textContent = DB.businessName;
+  $("#sideUsername").textContent = CURRENT_USER;
+  if(!DB.pinHash){ showLock("setup1"); } else { showLock("enter"); }
+}
+
+$("#logoutBtn").addEventListener("click", ()=>{
+  openModal(`
+    <div class="modal-head"><h3>Chiqishni tasdiqlang</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="font-size:13.5px; line-height:1.6; margin-bottom:16px;">Joriy hisobdan chiqasiz. Ma'lumotlaringiz saqlanib qoladi, keyingi safar shu login/parol bilan qayta kirishingiz mumkin.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-danger" id="confirmLogout">Chiqish</button>
+      </div>
+    </div>
+  `);
+  $("#confirmLogout").addEventListener("click", async ()=>{
+    clearTimeout(autoLockTimer);
+    await clearSession();
+    unlocked = false; DB = null; CURRENT_USER = null;
+    closeModal();
+    $("#app").classList.add("hidden");
+    $("#lockScreen").classList.add("hidden");
+    await loadAccounts();
+    showAuthScreen();
+  });
+});
+
+/* -------------------- PIN LOCK LOGIC -------------------- */
+function renderPinDots(len){
+  const dots = $("#pinDots");
+  dots.innerHTML = "";
+  for(let i=0;i<len;i++){
+    const d = document.createElement("div");
+    d.className = "pin-dot" + (i<pinBuffer.length ? " filled":"");
+    dots.appendChild(d);
+  }
+}
+function renderPinPad(){
+  const pad = $("#pinPad");
+  pad.innerHTML = "";
+  const keys = ["1","2","3","4","5","6","7","8","9","","0","⌫"];
+  keys.forEach(k=>{
+    const b = document.createElement("button");
+    b.className = "pin-key" + (k==="⌫" ? " wide":"");
+    b.textContent = k;
+    if(k===""){ b.style.visibility="hidden"; }
+    else{ b.addEventListener("click", ()=> handlePinKey(k)); }
+    pad.appendChild(b);
+  });
+}
+function shakeDots(){
+  $$(".pin-dot").forEach(d=>d.classList.add("shake"));
+  setTimeout(()=> $$(".pin-dot").forEach(d=>d.classList.remove("shake")), 400);
+}
+async function handlePinKey(k){
+  const err = $("#lockError");
+  if(k==="⌫"){ pinBuffer = pinBuffer.slice(0,-1); renderPinDots(4); return; }
+  if(pinBuffer.length>=4) return;
+  pinBuffer += k;
+  renderPinDots(4);
+  if(pinBuffer.length===4){
+    if(pinMode==="setup1"){
+      pendingPin = pinBuffer;
+      pinBuffer = "";
+      pinMode = "setup2";
+      $("#lockTitle").textContent = "PIN-kodni tasdiqlang";
+      $("#lockSub").textContent = "Xavfsizlik uchun PIN-kodni yana bir marta kiriting.";
+      renderPinDots(4);
+    } else if(pinMode==="setup2"){
+      if(pinBuffer===pendingPin){
+        DB.pinHash = await sha256(pinBuffer);
+        await saveDB();
+        toast("PIN-kod muvaffaqiyatli o'rnatildi");
+        enterApp();
+      } else {
+        err.textContent = "PIN-kodlar mos kelmadi. Qaytadan urinib ko'ring.";
+        shakeDots();
+        pinBuffer=""; pendingPin=""; pinMode="setup1";
+        $("#lockTitle").textContent = "Xush kelibsiz";
+        $("#lockSub").textContent = "Ma'lumotlaringizni himoya qilish uchun 4 xonali PIN-kod o'rnating.";
+        setTimeout(()=>renderPinDots(4), 400);
+      }
+    } else if(pinMode==="enter"){
+      const h = await sha256(pinBuffer);
+      if(h===DB.pinHash){
+        err.textContent = "";
+        enterApp();
+      } else {
+        err.textContent = "Noto'g'ri PIN-kod. Qaytadan urinib ko'ring.";
+        shakeDots();
+        setTimeout(()=>{ pinBuffer=""; renderPinDots(4); }, 350);
+      }
+    }
+  }
+}
+function showLock(mode){
+  unlocked = false;
+  pinMode = mode;
+  pinBuffer = "";
+  $("#app").classList.add("hidden");
+  $("#authScreen").classList.add("hidden");
+  $("#lockScreen").classList.remove("hidden");
+  $("#lockError").textContent = "";
+  if(mode==="setup1"){
+    $("#lockTitle").textContent = "Xush kelibsiz";
+    $("#lockSub").textContent = "Ma'lumotlaringizni himoya qilish uchun 4 xonali PIN-kod o'rnating.";
+    $("#lockFooter").innerHTML = "";
+  } else {
+    $("#lockTitle").textContent = "Qulflangan";
+    $("#lockSub").textContent = "Davom etish uchun PIN-kodingizni kiriting.";
+    $("#lockFooter").innerHTML = `<a id="resetLink">PIN-kodni unutdingizmi? Ma'lumotlarni tozalash</a>`;
+    $("#resetLink").addEventListener("click", ()=>{
+      openModal(`
+        <div class="modal-head"><h3>Diqqat!</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p style="font-size:13.5px; line-height:1.6; margin-bottom:16px;">
+            PIN-kodni tiklash imkoni yo'q. Davom etsangiz, <b>ushbu hisobdagi barcha mijozlar, tranzaksiyalar va kartalar</b> butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.
+          </p>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+            <button class="btn btn-danger" id="confirmWipe">Ha, hammasini o'chirish</button>
+          </div>
+        </div>
+      `);
+      $("#confirmWipe").addEventListener("click", async ()=>{
+        DB = defaultDB();
+        await saveDB();
+        closeModal();
+        showLock("setup1");
+        toast("Ma'lumotlar tozalandi. Yangi PIN o'rnating.");
+      });
+    });
+  }
+  renderPinDots(4);
+  renderPinPad();
+}
+function enterApp(){
+  unlocked = true;
+  $("#lockScreen").classList.add("hidden");
+  $("#app").classList.remove("hidden");
+  $("#sideUsername").textContent = CURRENT_USER;
+  resetAutoLock();
+  navigate("dashboard");
+}
+function resetAutoLock(){
+  clearTimeout(autoLockTimer);
+  const mins = DB.autoLockMinutes || 5;
+  autoLockTimer = setTimeout(()=>{
+    if(unlocked){ showLock("enter"); toast("Beri turgani uchun ilova qulflandi"); }
+  }, mins*60*1000);
+}
+["mousemove","keydown","click","touchstart"].forEach(evt=>{
+  document.addEventListener(evt, ()=>{ if(unlocked) resetAutoLock(); });
+});
+
+/* -------------------- MODAL -------------------- */
+function openModal(html, wide=false){
+  const root = $("#modalRoot");
+  root.innerHTML = `<div class="modal-backdrop" id="modalBackdrop"><div class="modal${wide?" wide":""}">${html}</div></div>`;
+  $("#modalBackdrop").addEventListener("click", (e)=>{ if(e.target.id==="modalBackdrop") closeModal(); });
+}
+function closeModal(){ $("#modalRoot").innerHTML = ""; }
+window.closeModal = closeModal;
+
+/* -------------------- NAV / ROUTER -------------------- */
+function renderNav(){
+  const nav = $("#navList");
+  nav.innerHTML = "";
+  const t = totals();
+  NAV_ITEMS.forEach(item=>{
+    const btn = document.createElement("button");
+    btn.className = "nav-item" + (currentPage===item.id ? " active":"");
+    let badge = "";
+    if(item.id==="clients" && t.overdueCount>0) badge = `<span class="nav-badge">${t.overdueCount}</span>`;
+    btn.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">${item.icon}</svg>${item.label}${badge}`;
+    btn.addEventListener("click", ()=> navigate(item.id));
+    nav.appendChild(btn);
+  });
+}
+function navigate(page, param=null){
+  currentPage = page;
+  currentClientId = param;
+  renderNav();
+  const titles = {dashboard:"Bosh sahifa", clients:"Mijozlar", transactions:"Barcha tranzaksiyalar", wallet:"Kartalarim", stats:"Statistika", settings:"Sozlamalar", clientDetail:"Mijoz kartasi"};
+  $("#pageTitle").textContent = titles[page] || "";
+  window.scrollTo(0,0);
+  render();
+}
+window.navigate = navigate;
+
+/* -------------------- RENDER: DASHBOARD -------------------- */
+function renderDashboard(){
+  const t = totals();
+  const recent = [...DB.transactions].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,6);
+  const overdueClients = DB.clients.filter(c=>clientIsOverdue(c.id));
+
+  let html = `
+  <div class="stat-grid">
+    <div class="stat-card">
+      <div class="stat-label">Menga qarzdorlar</div>
+      <div class="stat-value rust">${fmtMoney(t.owedToMe)}</div>
+      <div class="stat-note">Mijozlar sizga qarzdor</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Men qarzdorman</div>
+      <div class="stat-value teal">${fmtMoney(t.iOwe)}</div>
+      <div class="stat-note">Siz boshqalarga qarzdorsiz</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Sof holat</div>
+      <div class="stat-value ${t.net>=0?'gold':'rust'}">${fmtMoney(t.net)}</div>
+      <div class="stat-note">Qarzdorlik − qarzim</div>
+    </div>
+    <div class="stat-card">
+      <div class="stat-label">Kartalarimda</div>
+      <div class="stat-value teal">${fmtMoney(totalCardBalance())}</div>
+      <div class="stat-note">${DB.cards.length} ta karta</div>
+    </div>
+  </div>`;
+
+  if(t.overdueCount>0 && DB.notifications){
+    html += `<div class="section-title">⚠ Muddati o'tgan qarzlar<span class="link" onclick="navigate('clients')">Barchasini ko'rish</span></div>
+    <div class="ledger-card">`;
+    overdueClients.slice(0,5).forEach(c=>{
+      const bal = clientBalance(c.id);
+      html += `<div class="ledger-row type-debt" style="cursor:pointer" onclick="navigate('clientDetail','${c.id}')">
+        <div class="avatar">${initials(c.name)}</div>
+        <div class="row-main"><div class="row-title">${escHtml(c.name)}</div><div class="row-sub">${c.phone||"Telefon kiritilmagan"}</div></div>
+        <div class="row-amount rust">${fmtMoney(bal)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="section-title">So'nggi tranzaksiyalar<span class="link" onclick="navigate('transactions')">Barchasini ko'rish</span></div>`;
+  if(recent.length===0){
+    html += emptyState("Hali tranzaksiya yo'q","Mijoz qo'shib, birinchi qarz yoki to'lovni kiriting.");
+  } else {
+    html += `<div class="ledger-card">`;
+    recent.forEach(tx=>{
+      const c = DB.clients.find(c=>c.id===tx.clientId);
+      const lbl = txLabel(tx, c);
+      html += `<div class="ledger-row type-${tx.type}" style="cursor:pointer" onclick="navigate('clientDetail','${tx.clientId}')">
+        <div class="avatar">${c?initials(c.name):"?"}</div>
+        <div class="row-main">
+          <div class="row-title">${c?escHtml(c.name):"O'chirilgan mijoz"}</div>
+          <div class="row-sub">${lbl} · ${fmtDate(tx.date)}</div>
+        </div>
+        <div class="row-amount ${tx.type==="debt"?"rust":"gold"}">${tx.type==="debt"?"+":"−"}${fmtMoney(tx.amount)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+
+function txLabel(tx, client){
+  const iowe = client && client.relation==="i_owe";
+  if(tx.type==="debt") return iowe ? "Qarz oldim" : "Qarz berdim";
+  return iowe ? "Qarzni qaytardim" : "To'lov qabul qildim";
+}
+
+function emptyState(title, sub){
+  return `<div class="empty-state">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.6"><rect x="3" y="4" width="18" height="16" rx="2"/><path d="M7 8h10M7 12h10M7 16h6"/></svg>
+    <div class="t">${title}</div>
+    <div class="s">${sub}</div>
+  </div>`;
+}
+
+/* -------------------- RENDER: CLIENTS -------------------- */
+function renderClients(){
+  let list = DB.clients.slice();
+  if(searchQuery){
+    const q = searchQuery.toLowerCase();
+    list = list.filter(c=> c.name.toLowerCase().includes(q) || (c.phone||"").includes(q));
+  }
+  if(clientFilter==="owed") list = list.filter(c=>c.relation!=="i_owe" && clientBalance(c.id)>0);
+  if(clientFilter==="iowe") list = list.filter(c=>c.relation==="i_owe" && clientBalance(c.id)>0);
+  if(clientFilter==="overdue") list = list.filter(c=>clientIsOverdue(c.id));
+  list.sort((a,b)=> clientBalance(b.id) - clientBalance(a.id));
+
+  let html = `<div class="client-toolbar">
+    <div class="chip-group">
+      <button class="chip ${clientFilter==='all'?'active':''}" onclick="setClientFilter('all')">Barchasi (${DB.clients.length})</button>
+      <button class="chip ${clientFilter==='owed'?'active':''}" onclick="setClientFilter('owed')">Menga qarzdor</button>
+      <button class="chip ${clientFilter==='iowe'?'active':''}" onclick="setClientFilter('iowe')">Men qarzdorman</button>
+      <button class="chip ${clientFilter==='overdue'?'active':''}" onclick="setClientFilter('overdue')">Muddati o'tgan</button>
+    </div>
+  </div>`;
+
+  if(list.length===0){
+    html += emptyState("Mijoz topilmadi", "Yangi mijoz qo'shish uchun yuqoridagi \"Mijoz qo'shish\" tugmasini bosing.");
+  } else {
+    html += `<div class="client-grid">`;
+    list.forEach(c=>{
+      const bal = clientBalance(c.id);
+      const overdue = clientIsOverdue(c.id);
+      const iowe = c.relation==="i_owe";
+      html += `<button class="client-card" onclick="navigate('clientDetail','${c.id}')">
+        <div class="client-card-top">
+          <div class="avatar">${initials(c.name)}</div>
+          <div>
+            <div class="client-name">${escHtml(c.name)}</div>
+            <div class="client-phone">${c.phone || "Telefon yo'q"}</div>
+          </div>
+        </div>
+        <div class="client-balance-label">${iowe ? "Men unga qarzdorman" : (bal>=0 ? "U menga qarzdor" : "Ortiqcha to'lov")}</div>
+        <div class="client-balance" style="color:${bal===0?'var(--muted)':(iowe?'var(--teal)':'var(--rust)')}">${fmtMoney(Math.abs(bal))}</div>
+        ${overdue ? `<div class="badge overdue">⚠ Muddati o'tgan</div>` : (iowe ? `<div class="badge iowe">Men qarzdorman</div>` : (bal===0 ? `<div class="badge clean">✓ Toza hisob</div>` : ""))}
+      </button>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+function setClientFilter(f){ clientFilter=f; renderClients(); }
+window.setClientFilter = setClientFilter;
+
+/* -------------------- RENDER: CLIENT DETAIL -------------------- */
+function renderClientDetail(){
+  const c = DB.clients.find(c=>c.id===currentClientId);
+  if(!c){ navigate("clients"); return; }
+  const bal = clientBalance(c.id);
+  const txs = clientTransactions(c.id);
+  const overdue = clientIsOverdue(c.id);
+  const iowe = c.relation==="i_owe";
+
+  let html = `
+  <button class="btn btn-outline btn-sm" style="margin-bottom:18px" onclick="navigate('clients')">← Mijozlar ro'yxatiga qaytish</button>
+  <div class="detail-head">
+    <div class="detail-avatar">${initials(c.name)}</div>
+    <div style="flex:1">
+      <div class="detail-name">${escHtml(c.name)}</div>
+      <div class="detail-meta">${c.phone || "Telefon kiritilmagan"} ${c.address ? " · " + escHtml(c.address) : ""}</div>
+      ${overdue ? `<div class="badge overdue" style="margin-top:8px">⚠ Muddati o'tgan qarz mavjud</div>` : (iowe ? `<div class="badge iowe" style="margin-top:8px">Men unga qarzdorman</div>` : "")}
+      ${c.note ? `<div class="detail-meta" style="margin-top:8px">📝 ${escHtml(c.note)}</div>` : ""}
+    </div>
+    <div class="balance-box">
+      <div class="client-balance-label">${iowe ? "Men unga qarzdorman" : (bal>=0 ? "U menga qarzdor" : "Ortiqcha to'lov")}</div>
+      <div class="v" style="color:${bal===0?'var(--ink)':(iowe?'var(--teal)':'var(--rust)')}">${fmtMoney(Math.abs(bal))}</div>
+    </div>
+  </div>
+
+  <div class="action-hint">
+    ${iowe
+      ? `Bu mijoz — <b>siz undan qarz olgan yoki oldigan</b> shaxs (masalan ta'minotchi). "Qarz oldim" tugmasi sizning qarzingizni oshiradi, "Qarz qaytardim" esa uni kamaytiradi.`
+      : `Bu mijoz — <b>sizdan qarz olgan</b> shaxs (masalan do'kon mijozi). "Qarz berish" tugmasi uning qarzini oshiradi, "To'lov qabul qilish" esa uni kamaytiradi.`}
+  </div>
+
+  <div style="display:flex; gap:10px; margin-bottom:22px; flex-wrap:wrap;">
+    <button class="btn btn-danger" onclick="openTxModal('${c.id}','debt')">${iowe ? "+ Qarz oldim" : "+ Qarz berish"}</button>
+    <button class="btn btn-gold" onclick="openTxModal('${c.id}','payment')">${iowe ? "+ Qarz qaytarish" : "+ To'lov qabul qilish"}</button>
+    <button class="btn btn-outline" onclick="openClientModal('${c.id}')">Ma'lumotni tahrirlash</button>
+    <button class="btn btn-outline" onclick="confirmDeleteClient('${c.id}')" style="color:var(--rust); border-color:var(--rust-soft)">O'chirish</button>
+  </div>
+
+  <div class="section-title">Tranzaksiyalar tarixi</div>`;
+
+  if(txs.length===0){
+    html += emptyState("Hali tranzaksiya yo'q", "Yuqoridagi tugmalar orqali birinchi qarz yoki to'lovni kiriting.");
+  } else {
+    html += `<div class="ledger-card">`;
+    txs.forEach(tx=>{
+      const isOverdueTx = tx.type==="debt" && tx.dueDate && tx.dueDate < todayISO() && bal>0;
+      const card = tx.cardId ? DB.cards.find(cd=>cd.id===tx.cardId) : null;
+      html += `<div class="ledger-row type-${tx.type}">
+        <div class="avatar" style="background:${tx.type==='debt'?'var(--rust-soft)':'var(--gold-soft)'}; color:${tx.type==='debt'?'var(--rust)':'var(--gold)'}">${tx.type==='debt'?'↑':'↓'}</div>
+        <div class="row-main">
+          <div class="row-title">${txLabel(tx,c)}</div>
+          <div class="row-sub">${fmtDate(tx.date)}${tx.dueDate ? ` · Muddat: ${fmtDate(tx.dueDate)}${isOverdueTx?' ⚠':''}` : ""}${tx.note ? " · " + escHtml(tx.note) : ""}${card ? ` · 💳 ${escHtml(card.bank)} •${card.last4}` : ""}</div>
+        </div>
+        <div class="row-amount ${tx.type==='debt'?'rust':'gold'}">${tx.type==='debt'?'+':'−'}${fmtMoney(tx.amount)}</div>
+        <button class="icon-btn" style="width:30px;height:30px;flex-shrink:0" onclick="deleteTx('${tx.id}')" title="O'chirish">
+          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 7h16M9 7V4h6v3M7 7l1 13h8l1-13"/></svg>
+        </button>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+
+/* -------------------- RENDER: ALL TRANSACTIONS -------------------- */
+function renderTransactions(){
+  let txs = [...DB.transactions].sort((a,b)=> new Date(b.date)-new Date(a.date));
+  if(searchQuery){
+    const q = searchQuery.toLowerCase();
+    txs = txs.filter(tx=>{
+      const c = DB.clients.find(c=>c.id===tx.clientId);
+      return (c && c.name.toLowerCase().includes(q)) || (tx.note||"").toLowerCase().includes(q);
+    });
+  }
+  let html = "";
+  if(txs.length===0){
+    html = emptyState("Tranzaksiya topilmadi", "Mijoz sahifasidan qarz yoki to'lov qo'shing.");
+  } else {
+    html = `<div class="ledger-card">`;
+    txs.forEach(tx=>{
+      const c = DB.clients.find(c=>c.id===tx.clientId);
+      html += `<div class="ledger-row type-${tx.type}" style="cursor:pointer" onclick="navigate('clientDetail','${tx.clientId}')">
+        <div class="avatar">${c?initials(c.name):"?"}</div>
+        <div class="row-main">
+          <div class="row-title">${c?escHtml(c.name):"O'chirilgan mijoz"}</div>
+          <div class="row-sub">${txLabel(tx,c)} · ${fmtDate(tx.date)}${tx.note?" · "+escHtml(tx.note):""}</div>
+        </div>
+        <div class="row-amount ${tx.type==="debt"?"rust":"gold"}">${tx.type==="debt"?"+":"−"}${fmtMoney(tx.amount)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+
+/* -------------------- RENDER: WALLET / CARDS -------------------- */
+function cardGrad(bank){ return (BANK_PRESETS[bank]||BANK_PRESETS["Boshqa"]).grad; }
+
+function renderWallet(){
+  const ctx = [...DB.cardTx].sort((a,b)=>new Date(b.date)-new Date(a.date)).slice(0,12);
+
+  let html = `
+  <div class="disclaimer">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="10"/><path d="M12 8v5M12 16h.01"/></svg>
+    <div>Kartalar — shaxsiy hisob-kitobingiz uchun ichki vosita. Ular real bank tizimiga ulanmagan va haqiqiy pul ko'chirmasini amalga oshirmaydi; faqat qarz-to'lov yozuvlarini karta bo'yicha qulayroq yuritish uchun mo'ljallangan. Karta raqamlari faqat ilova ichida ko'rinadi.</div>
+  </div>
+
+  <div class="wallet-hero">
+    <div>
+      <div class="lbl">Barcha kartalar balansi</div>
+      <div class="val">${fmtMoney(totalCardBalance())}</div>
+      <div class="sub">${DB.cards.length} ta karta ulangan</div>
+    </div>
+    <div class="wallet-actions">
+      <button class="btn btn-teal" onclick="openCardTxModal('topup')" ${DB.cards.length===0?"disabled":""}>+ Pul solish</button>
+      <button class="btn btn-outline" style="background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.3)" onclick="openCardTxModal('withdraw')" ${DB.cards.length===0?"disabled":""}>− Pul yechish</button>
+      <button class="btn btn-gold" onclick="openCardTxModal('transfer')" ${DB.cards.length<2?"disabled":""}>⇄ Kartadan kartaga</button>
+      <button class="btn btn-outline" style="background:rgba(255,255,255,.1); color:#fff; border-color:rgba(255,255,255,.3)" onclick="openOnlinePayModal()" ${DB.cards.length===0?"disabled":""}>🌐 Onlayn to'lov</button>
+    </div>
+  </div>
+
+  <div class="section-title">Kartalarim</div>
+  <div class="section-hint">Virtual karta shu zahoti yaratiladi. Plastik yoki onlayn kartani esa mavjud (haqiqiy) kartangiz asosida qo'shasiz.</div>
+  <div class="cards-row">`;
+  DB.cards.forEach(card=>{
+    const typ = CARD_TYPES[card.type] || CARD_TYPES.virtual;
+    html += `<button class="bank-card ${card.frozen?'frozen':''}" style="background:${cardGrad(card.bank)}" onclick="openCardDetail('${card.id}')">
+      <button class="bk-del" onclick="event.stopPropagation(); deleteCard('${card.id}')" title="O'chirish">✕</button>
+      <div>
+        <div class="bk-top"><span>${escHtml(card.bank)}</span><span>${card.frozen?'❄️':typ.emoji}</span></div>
+        <div class="bk-type">${typ.label}${card.physicalStatus==='ordered'?' · yetkazilmoqda':''}</div>
+      </div>
+      <div class="bk-num">${maskCardNumber(card.number||('••••••••••••'+card.last4))}</div>
+      <div class="bk-bal">${fmtMoney(card.balance)}</div>
+      <div class="bk-bottom"><span class="bk-holder">${escHtml(card.holder)}</span><span>${escHtml(card.expiry||"")}</span></div>
+    </button>`;
+  });
+  html += `<button class="bank-card ghost" onclick="openCardModal()">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M12 5v14M5 12h14"/></svg>
+    Karta qo'shish
+  </button>`;
+  html += `</div>`;
+
+  html += `<div class="section-title">Karta harakatlari</div>`;
+  if(ctx.length===0){
+    html += emptyState("Hali harakat yo'q", "Pul solish, kartalar orasida o'tkazma yoki mijozga to'lov/qarz orqali tarix shu yerda ko'rinadi.");
+  } else {
+    html += `<div class="ledger-card">`;
+    ctx.forEach(tx=>{
+      const card = DB.cards.find(cd=>cd.id===tx.cardId);
+      const toCard = tx.toCardId ? DB.cards.find(cd=>cd.id===tx.toCardId) : null;
+      const c = tx.clientId ? DB.clients.find(cl=>cl.id===tx.clientId) : null;
+      let title, sign;
+      if(tx.type==="topup"){ title = `Pul solindi → ${card?escHtml(card.bank)+' •'+card.last4:''}`; sign="+"; }
+      else if(tx.type==="withdraw"){ title = `Pul yechildi ← ${card?escHtml(card.bank)+' •'+card.last4:''}`; sign="−"; }
+      else if(tx.type==="transfer_out"){ title = `${card?escHtml(card.bank)+' •'+card.last4:''} → ${toCard?escHtml(toCard.bank)+' •'+toCard.last4:''}`; sign="−"; }
+      else if(tx.type==="transfer_in"){ title = `${card?escHtml(card.bank)+' •'+card.last4:''} qabul qildi`; sign="+"; }
+      else if(tx.type==="online"){ title = "Onlayn to'lov: " + (tx.note||"—"); sign="−"; }
+      else if(tx.type==="lend"){ title = "Qarz berildi: " + (c?escHtml(c.name):"—"); sign="−"; }
+      else { title = "To'lov qabul qilindi: " + (c?escHtml(c.name):"—"); sign="+"; }
+      html += `<div class="ledger-row type-${sign==='+'?'payment':'debt'}">
+        <div class="avatar" style="background:var(--teal-soft); color:var(--teal)">💳</div>
+        <div class="row-main"><div class="row-title">${title}</div><div class="row-sub">${fmtDate(tx.date)}</div></div>
+        <div class="row-amount teal">${sign}${fmtMoney(tx.amount)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+
+/* ---- Card creation (virtual / plastic / online) with 16+ confirmation ---- */
+function openCardModal(){
+  let step = DB.ageConfirmed ? 2 : 1;
+  let chosenType = "virtual";
+  const bankOpts = Object.keys(BANK_PRESETS).map(b=>`<option value="${b}">${b}</option>`).join("");
+
+  function renderStep(){
+    if(step===1){
+      openModal(`
+        <div class="modal-head"><h3>Yosh tasdig'i</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+        <div class="modal-body">
+          <p style="margin-bottom:14px; font-size:13.5px; line-height:1.6;">Karta yaratish moliyaviy javobgarlikni anglatadi, shu sababli faqat 16 yoshdan katta foydalanuvchilar karta qo'sha oladi.</p>
+          <div class="form-check"><input type="checkbox" id="ageCheck"/> <span>Men 16 yoshdan katta ekanligimni tasdiqlayman.</span></div>
+          <div class="modal-actions">
+            <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+            <button class="btn btn-gold" id="ageNextBtn">Davom etish</button>
+          </div>
+        </div>
+      `);
+      $("#ageNextBtn").addEventListener("click", async ()=>{
+        if(!$("#ageCheck").checked){ toast("Davom etish uchun tasdiqlang","error"); return; }
+        DB.ageConfirmed = true;
+        await saveDB();
+        step = 2;
+        renderStep();
+      });
+      return;
+    }
+
+    // step 2: choose type
+    openModal(`
+      <div class="modal-head"><h3>Karta qo'shish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <div class="type-pick" id="typePick">
+          <button type="button" data-t="virtual" class="active"><span>✨</span>Virtual<div class="small" style="font-size:10px;font-weight:500">Shu zahoti yaratiladi</div></button>
+          <button type="button" data-t="plastic"><span>💳</span>Plastik<div class="small" style="font-size:10px;font-weight:500">Mavjud kartangiz</div></button>
+          <button type="button" data-t="online"><span>🌐</span>Onlayn<div class="small" style="font-size:10px;font-weight:500">Faqat internet uchun</div></button>
+        </div>
+        <div id="typeFields"></div>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+          <button class="btn btn-gold" id="saveCardBtn">Qo'shish</button>
+        </div>
+      </div>
+    `);
+
+    function renderFields(){
+      const wrap = $("#typeFields");
+      if(chosenType==="plastic"){
+        wrap.innerHTML = `
+          <div class="form-field"><label>Bank / tizim</label><select id="cardBank">${bankOpts}</select></div>
+          <div class="form-field"><label>Karta egasi</label><input type="text" id="cardHolder" placeholder="F.I.SH."/></div>
+          <div class="form-field"><label>Karta raqami</label><input type="text" id="cardNum" inputmode="numeric" maxlength="19" placeholder="8600 0000 0000 0000"/></div>
+          <div class="form-field"><label>Amal qilish muddati (ixtiyoriy)</label><input type="text" id="cardExp" placeholder="MM/YY" maxlength="5"/></div>
+          <div class="auth-hint" style="margin-bottom:10px">Xavfsizlik uchun faqat kartaning oxirgi 4 raqami saqlanadi, to'liq raqam hech qayerda saqlanmaydi.</div>`;
+      } else {
+        wrap.innerHTML = `
+          <div class="form-field"><label>Bank / tizim</label><select id="cardBank">${bankOpts}</select></div>
+          <div class="form-field"><label>Karta egasi</label><input type="text" id="cardHolder" value="${escHtml(DB.businessName||"")}" placeholder="F.I.SH."/></div>
+          <div class="form-field"><label>Boshlang'ich balans (ixtiyoriy)</label><input type="number" id="cardInitBal" min="0" placeholder="0"/></div>
+          <div class="auth-hint" style="margin-bottom:10px">${chosenType==='virtual' ? "Karta raqami avtomatik yaratiladi va istalgan vaqt jismoniy kartaga aylantirilishi mumkin." : "Onlayn karta faqat ilova ichida onlayn to'lovlar uchun ishlatiladi."}</div>`;
+      }
+    }
+    renderFields();
+
+    $$('#typePick button').forEach(b=>{
+      b.addEventListener("click", ()=>{
+        chosenType = b.dataset.t;
+        $$('#typePick button').forEach(x=>x.classList.toggle("active", x===b));
+        renderFields();
+      });
+    });
+
+    $("#saveCardBtn").addEventListener("click", async ()=>{
+      const bank = $("#cardBank").value;
+      const holder = $("#cardHolder").value.trim();
+      if(!holder){ toast("Karta egasi ismini kiriting","error"); return; }
+      if(chosenType==="plastic"){
+        const num = $("#cardNum").value.replace(/\D/g,"");
+        const expiry = $("#cardExp").value.trim();
+        if(num.length<4){ toast("Karta raqamini to'liqroq kiriting","error"); return; }
+        DB.cards.push({id:uid(), bank, type:"plastic", holder, number:null, last4:num.slice(-4), expiry, balance:0, frozen:false, physicalStatus:"delivered", createdAt:new Date().toISOString()});
+      } else {
+        const initBal = Number($("#cardInitBal").value)||0;
+        const number = genCardNumber(bank);
+        DB.cards.push({id:uid(), bank, type:chosenType, holder, number, last4:number.slice(-4), expiry:futureExpiry(), balance:initBal, frozen:false, physicalStatus:chosenType==="virtual"?null:"delivered", createdAt:new Date().toISOString()});
+      }
+      await saveDB();
+      closeModal();
+      toast("Karta qo'shildi");
+      renderWallet();
+    });
+  }
+  renderStep();
+}
+window.openCardModal = openCardModal;
+
+function openCardDetail(id){
+  const card = DB.cards.find(c=>c.id===id);
+  if(!card) return;
+  const typ = CARD_TYPES[card.type] || CARD_TYPES.virtual;
+  openModal(`
+    <div class="modal-head"><h3>${escHtml(card.bank)} — ${typ.label}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="bank-card" style="background:${cardGrad(card.bank)}; cursor:default; margin-bottom:16px;">
+        <div class="bk-top"><span>${escHtml(card.bank)}</span><span>${typ.emoji}</span></div>
+        <div class="bk-num">${card.number ? maskCardNumber(card.number) : '•••• •••• •••• '+card.last4}</div>
+        <div class="bk-bottom"><span class="bk-holder">${escHtml(card.holder)}</span><span>${escHtml(card.expiry||"")}</span></div>
+      </div>
+      <div class="settings-row"><div class="t">Balans</div><div class="t" style="font-family:var(--font-mono)">${fmtMoney(card.balance)}</div></div>
+      <div class="settings-row"><div class="t">Holat</div><div class="s">${card.frozen ? "Muzlatilgan" : "Faol"}</div></div>
+      ${card.type==="virtual" ? `<div class="settings-row"><div class="t">Jismoniy karta</div><div class="s">${card.physicalStatus==='ordered' ? "Buyurtma berilgan, yetkazilmoqda" : card.physicalStatus==='delivered' ? "Yetkazib berildi" : "Buyurtma berilmagan"}</div></div>` : ""}
+      <div class="modal-actions" style="flex-wrap:wrap;">
+        <button class="btn btn-outline btn-sm" id="toggleFreeze">${card.frozen ? "Muzlatishni bekor qilish" : "❄️ Muzlatish"}</button>
+        ${card.type==="virtual" && card.physicalStatus!=="ordered" && card.physicalStatus!=="delivered" ? `<button class="btn btn-teal btn-sm" id="orderPhysical">Jismoniy kartaga buyurtma berish</button>` : ""}
+        ${card.physicalStatus==="ordered" ? `<button class="btn btn-teal btn-sm" id="markDelivered">Yetib keldi deb belgilash</button>` : ""}
+      </div>
+    </div>
+  `);
+  $("#toggleFreeze").addEventListener("click", async ()=>{
+    card.frozen = !card.frozen;
+    await saveDB();
+    toast(card.frozen ? "Karta muzlatildi" : "Karta faollashtirildi");
+    closeModal(); renderWallet();
+  });
+  const ord = $("#orderPhysical");
+  if(ord) ord.addEventListener("click", async ()=>{
+    card.physicalStatus = "ordered";
+    await saveDB();
+    toast("Jismoniy kartaga buyurtma qabul qilindi");
+    closeModal(); renderWallet();
+  });
+  const del = $("#markDelivered");
+  if(del) del.addEventListener("click", async ()=>{
+    card.physicalStatus = "delivered";
+    card.type = "plastic";
+    await saveDB();
+    toast("Karta endi plastik sifatida belgilandi");
+    closeModal(); renderWallet();
+  });
+}
+window.openCardDetail = openCardDetail;
+
+function deleteCard(id){
+  openModal(`
+    <div class="modal-head"><h3>Kartani o'chirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px;">Ushbu kartani ro'yxatdan o'chirishni xohlaysizmi? Undagi balans tarixi yo'qoladi.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-danger" id="confirmDelCard">O'chirish</button>
+      </div>
+    </div>
+  `);
+  $("#confirmDelCard").addEventListener("click", async ()=>{
+    DB.cards = DB.cards.filter(c=>c.id!==id);
+    await saveDB();
+    closeModal();
+    toast("Karta o'chirildi");
+    renderWallet();
+  });
+}
+window.deleteCard = deleteCard;
+
+function cardOptionsHtml(excludeId){
+  return DB.cards.filter(c=>c.id!==excludeId).map(c=>`<option value="${c.id}">${c.bank} •${c.last4} — ${fmtMoney(c.balance)}</option>`).join("");
+}
+
+function openCardTxModal(kind){
+  // kind: topup | withdraw | transfer
+  const titleMap = {topup:"Kartaga pul solish", withdraw:"Kartadan pul yechish", transfer:"Kartadan kartaga o'tkazma"};
+  openModal(`
+    <div class="modal-head"><h3>${titleMap[kind]}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-field"><label>${kind==="transfer" ? "Qaysi kartadan" : "Karta"}</label><select id="wCard">${cardOptionsHtml()}</select></div>
+      ${kind==="transfer" ? `<div class="form-field"><label>Qaysi kartaga</label><select id="wCardTo">${cardOptionsHtml()}</select></div>` : ""}
+      <div class="form-field"><label>Summa (${DB.currency})</label><input type="number" id="wAmount" min="1" placeholder="0"/></div>
+      <div class="form-field"><label>Izoh</label><input type="text" id="wNote" placeholder="Ixtiyoriy"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-teal" id="wSaveBtn">Saqlash</button>
+      </div>
+    </div>
+  `);
+  $("#wSaveBtn").addEventListener("click", async ()=>{
+    const amount = Number($("#wAmount").value);
+    if(!amount || amount<=0){ toast("To'g'ri summa kiriting","error"); return; }
+    const cardId = $("#wCard").value;
+    const card = DB.cards.find(c=>c.id===cardId);
+    if(!card){ toast("Karta tanlanmagan","error"); return; }
+    const note = $("#wNote").value.trim();
+    if(kind==="topup"){
+      card.balance += amount;
+      DB.cardTx.push({id:uid(), type:"topup", cardId, amount, note, date:new Date().toISOString()});
+    } else if(kind==="withdraw"){
+      if(amount>card.balance){ toast("Kartada yetarli mablag' yo'q","error"); return; }
+      card.balance -= amount;
+      DB.cardTx.push({id:uid(), type:"withdraw", cardId, amount, note, date:new Date().toISOString()});
+    } else if(kind==="transfer"){
+      const toId = $("#wCardTo").value;
+      const toCard = DB.cards.find(c=>c.id===toId);
+      if(!toCard || toCard.id===card.id){ toast("Boshqa kartani tanlang","error"); return; }
+      if(amount>card.balance){ toast("Kartada yetarli mablag' yo'q","error"); return; }
+      card.balance -= amount; toCard.balance += amount;
+      DB.cardTx.push({id:uid(), type:"transfer_out", cardId, toCardId:toId, amount, note, date:new Date().toISOString()});
+      DB.cardTx.push({id:uid(), type:"transfer_in", cardId:toId, toCardId:cardId, amount, note, date:new Date().toISOString()});
+    }
+    await saveDB();
+    closeModal();
+    toast("Bajarildi");
+    renderWallet();
+  });
+}
+window.openCardTxModal = openCardTxModal;
+
+function openOnlinePayModal(){
+  openModal(`
+    <div class="modal-head"><h3>Onlayn to'lov</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-field"><label>To'lov qiluvchi karta</label><select id="opCard">${cardOptionsHtml()}</select></div>
+      <div class="form-field"><label>Qabul qiluvchi / xizmat nomi</label><input type="text" id="opMerchant" placeholder="Masalan: Click, internet do'kon..."/></div>
+      <div class="form-field"><label>Summa (${DB.currency})</label><input type="number" id="opAmount" min="1" placeholder="0"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-gold" id="opSaveBtn">To'lash</button>
+      </div>
+    </div>
+  `);
+  $("#opSaveBtn").addEventListener("click", async ()=>{
+    const cardId = $("#opCard").value;
+    const card = DB.cards.find(c=>c.id===cardId);
+    const merchant = $("#opMerchant").value.trim() || "Noma'lum xizmat";
+    const amount = Number($("#opAmount").value);
+    if(!card){ toast("Karta tanlanmagan","error"); return; }
+    if(card.frozen){ toast("Bu karta muzlatilgan","error"); return; }
+    if(!amount || amount<=0){ toast("To'g'ri summa kiriting","error"); return; }
+    if(amount>card.balance){ toast("Kartada yetarli mablag' yo'q","error"); return; }
+    card.balance -= amount;
+    DB.cardTx.push({id:uid(), type:"online", cardId, amount, note:merchant, date:new Date().toISOString()});
+    await saveDB();
+    closeModal();
+    toast("To'lov muvaffaqiyatli amalga oshirildi");
+    renderWallet();
+  });
+}
+window.openOnlinePayModal = openOnlinePayModal;
+
+/* -------------------- RENDER: STATS -------------------- */
+function renderStats(){
+  const months = [];
+  const now = new Date();
+  for(let i=5;i>=0;i--){
+    const d = new Date(now.getFullYear(), now.getMonth()-i, 1);
+    months.push({key:`${d.getFullYear()}-${d.getMonth()}`, label: d.toLocaleDateString("uz-UZ",{month:"short"}), debt:0, payment:0});
+  }
+  DB.transactions.forEach(tx=>{
+    const d = new Date(tx.date);
+    const key = `${d.getFullYear()}-${d.getMonth()}`;
+    const m = months.find(m=>m.key===key);
+    if(m){ m[tx.type] += Number(tx.amount); }
+  });
+  const max = Math.max(1, ...months.map(m=>Math.max(m.debt,m.payment)));
+  const chartH = 160;
+
+  let bars = "";
+  months.forEach((m,i)=>{
+    const x = i*100 + 20;
+    const dh = (m.debt/max)*chartH;
+    const ph = (m.payment/max)*chartH;
+    bars += `
+      <rect x="${x}" y="${chartH-dh+10}" width="26" height="${dh}" rx="4" fill="var(--rust)"></rect>
+      <rect x="${x+30}" y="${chartH-ph+10}" width="26" height="${ph}" rx="4" fill="var(--gold)"></rect>
+      <text x="${x+28}" y="${chartH+30}" font-size="11" fill="var(--muted)" text-anchor="middle" font-family="Manrope">${m.label}</text>
+    `;
+  });
+
+  const t = totals();
+  const topDebtors = [...DB.clients].filter(c=>c.relation!=="i_owe").map(c=>({c, bal:clientBalance(c.id)})).filter(x=>x.bal>0).sort((a,b)=>b.bal-a.bal).slice(0,5);
+  const topCreditors = [...DB.clients].filter(c=>c.relation==="i_owe").map(c=>({c, bal:clientBalance(c.id)})).filter(x=>x.bal>0).sort((a,b)=>b.bal-a.bal).slice(0,5);
+
+  let html = `
+  <div class="chart-card">
+    <div class="section-title" style="margin:0 0 4px">Oylik harakat (so'nggi 6 oy)</div>
+    <svg viewBox="0 0 ${months.length*100} 210" width="100%" height="220" style="overflow:visible">
+      ${bars}
+    </svg>
+    <div class="legend">
+      <span><span class="dot" style="background:var(--rust)"></span>Berilgan qarzlar</span>
+      <span><span class="dot" style="background:var(--gold)"></span>Qabul qilingan to'lovlar</span>
+    </div>
+  </div>
+
+  <div class="stat-grid" style="grid-template-columns:repeat(3,1fr)">
+    <div class="stat-card"><div class="stat-label">Menga qarzdorlik</div><div class="stat-value rust">${fmtMoney(t.owedToMe)}</div></div>
+    <div class="stat-card"><div class="stat-label">Mening qarzim</div><div class="stat-value teal">${fmtMoney(t.iOwe)}</div></div>
+    <div class="stat-card"><div class="stat-label">Muddati o'tgan</div><div class="stat-value gold">${fmtMoney(t.overdueSum)}</div></div>
+  </div>
+
+  <div class="section-title">Eng ko'p qarzdor mijozlar</div>`;
+  if(topDebtors.length===0){
+    html += emptyState("Qarzdorlar yo'q", "Hozircha hech kim sizga qarzdor emas.");
+  } else {
+    html += `<div class="ledger-card">`;
+    topDebtors.forEach(({c,bal})=>{
+      html += `<div class="ledger-row type-debt" style="cursor:pointer" onclick="navigate('clientDetail','${c.id}')">
+        <div class="avatar">${initials(c.name)}</div>
+        <div class="row-main"><div class="row-title">${escHtml(c.name)}</div></div>
+        <div class="row-amount rust">${fmtMoney(bal)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+
+  html += `<div class="section-title">Men eng ko'p qarzdor bo'lgan shaxslar</div>`;
+  if(topCreditors.length===0){
+    html += emptyState("Qarzlaringiz yo'q", "Hozircha siz hech kimga qarzdor emassiz.");
+  } else {
+    html += `<div class="ledger-card">`;
+    topCreditors.forEach(({c,bal})=>{
+      html += `<div class="ledger-row type-debt" style="cursor:pointer" onclick="navigate('clientDetail','${c.id}')">
+        <div class="avatar">${initials(c.name)}</div>
+        <div class="row-main"><div class="row-title">${escHtml(c.name)}</div></div>
+        <div class="row-amount teal">${fmtMoney(bal)}</div>
+      </div>`;
+    });
+    html += `</div>`;
+  }
+  $("#pageContent").innerHTML = html;
+}
+
+/* -------------------- RENDER: SETTINGS -------------------- */
+const ACCENTS = {gold:"#A9821F", teal:"#1F6E5C", rust:"#8B3A2B", plum:"#6A3E7A", blue:"#2A5FA5"};
+function applyAccent(){
+  const hex = ACCENTS[DB.accent] || ACCENTS.gold;
+  document.documentElement.style.setProperty("--gold", hex);
+}
+function renderSettings(){
+  let html = `
+  <div class="settings-card">
+    <div class="section-title" style="margin-top:0">Biznes ma'lumotlari</div>
+    <div class="form-field">
+      <label>Biznes nomi</label>
+      <input type="text" id="bizNameInput" value="${escHtml(DB.businessName)}" />
+    </div>
+    <div class="form-field">
+      <label>Valyuta belgisi</label>
+      <select id="currencySelect">
+        <option value="so'm">so'm</option>
+        <option value="$">$ (dollar)</option>
+        <option value="€">€ (yevro)</option>
+        <option value="₽">₽ (rubl)</option>
+      </select>
+    </div>
+    <button class="btn btn-gold btn-sm" id="saveBizName">Saqlash</button>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title" style="margin-top:0">Hisob</div>
+    <div class="settings-row">
+      <div><div class="t">Joriy hisob</div><div class="s">${escHtml(CURRENT_USER)}</div></div>
+      <button class="btn btn-outline btn-sm" id="logoutBtn2">Chiqish</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Parolni o'zgartirish</div><div class="s">Kirish parolingizni yangilang</div></div>
+      <button class="btn btn-outline btn-sm" id="changePassBtn">O'zgartirish</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t" style="color:var(--rust)">Hisobni butunlay o'chirish</div><div class="s">Hisob va barcha ma'lumotlar qaytarib bo'lmas tarzda o'chadi</div></div>
+      <button class="btn btn-danger btn-sm" id="deleteAccountBtn">O'chirish</button>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title" style="margin-top:0">Xavfsizlik</div>
+    <div class="settings-row">
+      <div><div class="t">PIN-kodni o'zgartirish</div><div class="s">Ilova kirish kodini yangilang</div></div>
+      <button class="btn btn-outline btn-sm" id="changePinBtn">O'zgartirish</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Avtomatik qulflash</div><div class="s">Harakatsizlikdan keyin qulflanish vaqti</div></div>
+      <select id="autoLockSelect">
+        <option value="1">1 daqiqa</option>
+        <option value="5">5 daqiqa</option>
+        <option value="15">15 daqiqa</option>
+        <option value="30">30 daqiqa</option>
+      </select>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">16+ yosh tasdig'i</div><div class="s">Karta qo'shish uchun berilgan tasdiq</div></div>
+      <div class="s">${DB.ageConfirmed ? "✓ Tasdiqlangan" : "Hali tasdiqlanmagan"}</div>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title" style="margin-top:0">Ko'rinish va bildirishnomalar</div>
+    <div class="settings-row">
+      <div><div class="t">Tungi rejim</div><div class="s">Ko'zga yoqimli qorong'i tema</div></div>
+      <button class="switch ${DB.theme==='dark'?'on':''}" id="darkSwitch"></button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Rang jilosi (accent)</div><div class="s">Tugmalar va urg'u rangi</div></div>
+      <div class="accent-row">
+        ${Object.entries(ACCENTS).map(([k,hex])=>`<button class="accent-dot ${DB.accent===k?'on':''}" data-accent="${k}" style="background:${hex}"></button>`).join("")}
+      </div>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Muddati o'tgan qarzlar haqida eslatma</div><div class="s">Bosh sahifada ogohlantirish blokini ko'rsatish</div></div>
+      <button class="switch ${DB.notifications?'on':''}" id="notifSwitch"></button>
+    </div>
+  </div>
+
+  <div class="settings-card">
+    <div class="section-title" style="margin-top:0">Ma'lumotlar</div>
+    <div class="settings-row">
+      <div><div class="t">Zaxira nusxa yuklab olish</div><div class="s">Mijozlar, tranzaksiyalar va kartalarni JSON fayl sifatida saqlang</div></div>
+      <button class="btn btn-outline btn-sm" id="exportBtn">Yuklab olish</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Faqat kartalarni eksport qilish</div><div class="s">Karta ro'yxatini alohida JSON fayl sifatida saqlang</div></div>
+      <button class="btn btn-outline btn-sm" id="exportCardsBtn">Yuklab olish</button>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Zaxiradan tiklash</div><div class="s">Avval saqlangan to'liq zaxira JSON faylini yuklang</div></div>
+      <label class="btn btn-outline btn-sm" style="margin:0">
+        Faylni tanlash <input type="file" id="importFile" accept=".json" style="display:none" />
+      </label>
+    </div>
+    <div class="settings-row">
+      <div><div class="t">Kartalarni import qilish</div><div class="s">Oldin eksport qilingan kartalar faylini qo'shing</div></div>
+      <label class="btn btn-outline btn-sm" style="margin:0">
+        Faylni tanlash <input type="file" id="importCardsFile" accept=".json" style="display:none" />
+      </label>
+    </div>
+    <div class="settings-row">
+      <div><div class="t" style="color:var(--rust)">Barcha ma'lumotlarni o'chirish</div><div class="s">Mijozlar/tranzaksiyalar/kartalar o'chadi, hisob va PIN saqlanib qoladi</div></div>
+      <button class="btn btn-danger btn-sm" id="wipeBtn">O'chirish</button>
+    </div>
+  </div>
+  <div style="text-align:center; color:var(--muted); font-size:12px; margin-top:20px;">
+    Qarz Daftari · Ma'lumotlaringiz faqat shu qurilmadagi shaxsiy hisobingizda saqlanadi.
+  </div>
+  `;
+  $("#pageContent").innerHTML = html;
+  $("#autoLockSelect").value = String(DB.autoLockMinutes || 5);
+  $("#currencySelect").value = DB.currency || "so'm";
+
+  $("#saveBizName").addEventListener("click", async ()=>{
+    DB.businessName = $("#bizNameInput").value.trim() || "Mening biznesim";
+    DB.currency = $("#currencySelect").value;
+    $("#bizNameSmall").textContent = DB.businessName;
+    const idx = ACCOUNTS.findIndex(a=>a.username===CURRENT_USER);
+    if(idx>-1){ ACCOUNTS[idx].businessName = DB.businessName; await saveAccounts(); }
+    await saveDB();
+    toast("Saqlandi");
+    render();
+  });
+  $("#autoLockSelect").addEventListener("change", async (e)=>{
+    DB.autoLockMinutes = Number(e.target.value);
+    await saveDB();
+    resetAutoLock();
+    toast("Sozlama yangilandi");
+  });
+  $("#darkSwitch").addEventListener("click", async ()=>{
+    DB.theme = DB.theme==="dark" ? "light" : "dark";
+    document.body.classList.toggle("dark", DB.theme==="dark");
+    await saveDB();
+    renderSettings();
+  });
+  $$(".accent-dot").forEach(dot=>{
+    dot.addEventListener("click", async ()=>{
+      DB.accent = dot.dataset.accent;
+      applyAccent();
+      await saveDB();
+      renderSettings();
+    });
+  });
+  $("#notifSwitch").addEventListener("click", async ()=>{
+    DB.notifications = !DB.notifications;
+    await saveDB();
+    renderSettings();
+  });
+  $("#changePinBtn").addEventListener("click", openChangePinModal);
+  $("#changePassBtn").addEventListener("click", openChangePasswordModal);
+  $("#logoutBtn2").addEventListener("click", ()=> $("#logoutBtn").click());
+  $("#deleteAccountBtn").addEventListener("click", openDeleteAccountModal);
+  $("#exportBtn").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify(DB,null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `qarz-daftari-${CURRENT_USER}-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Zaxira nusxa yuklab olindi");
+  });
+  $("#exportCardsBtn").addEventListener("click", ()=>{
+    const blob = new Blob([JSON.stringify({cards:DB.cards},null,2)], {type:"application/json"});
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement("a");
+    a.href = url; a.download = `qarz-daftari-kartalar-${todayISO()}.json`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast("Kartalar yuklab olindi");
+  });
+  $("#importFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        if(!data.clients || !data.transactions) throw new Error("format");
+        DB = {...defaultDB(), ...data};
+        DB.clients.forEach(c=>{ if(!c.relation) c.relation="owed_to_me"; });
+        DB.cards.forEach(c=>{ if(typeof c.balance!=="number") c.balance=0; });
+        await saveDB();
+        document.body.classList.toggle("dark", DB.theme==="dark");
+        applyAccent();
+        toast("Ma'lumotlar muvaffaqiyatli tiklandi");
+        navigate("dashboard");
+      }catch(err){
+        toast("Fayl formati noto'g'ri", "error");
+      }
+    };
+    reader.readAsText(file);
+  });
+  $("#importCardsFile").addEventListener("change", (e)=>{
+    const file = e.target.files[0];
+    if(!file) return;
+    const reader = new FileReader();
+    reader.onload = async ()=>{
+      try{
+        const data = JSON.parse(reader.result);
+        if(!Array.isArray(data.cards)) throw new Error("format");
+        data.cards.forEach(c=>{ c.id = uid(); DB.cards.push(c); });
+        await saveDB();
+        toast(`${data.cards.length} ta karta import qilindi`);
+        navigate("wallet");
+      }catch(err){
+        toast("Kartalar fayli formati noto'g'ri","error");
+      }
+    };
+    reader.readAsText(file);
+  });
+  $("#wipeBtn").addEventListener("click", ()=>{
+    openModal(`
+      <div class="modal-head"><h3>Ishonchingiz komilmi?</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+      <div class="modal-body">
+        <p style="margin-bottom:16px;">Barcha mijozlar, tranzaksiyalar va kartalar butunlay o'chiriladi. Hisob va PIN-kod saqlanib qoladi.</p>
+        <div class="modal-actions">
+          <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+          <button class="btn btn-danger" id="confirmWipeData">Ha, o'chirish</button>
+        </div>
+      </div>
+    `);
+    $("#confirmWipeData").addEventListener("click", async ()=>{
+      DB.clients = []; DB.transactions = []; DB.cards = []; DB.cardTx = [];
+      await saveDB();
+      closeModal();
+      toast("Barcha ma'lumotlar o'chirildi");
+      navigate("dashboard");
+    });
+  });
+}
+
+function openChangePinModal(){
+  openModal(`
+    <div class="modal-head"><h3>PIN-kodni o'zgartirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-field"><label>Joriy PIN-kod</label><input type="password" inputmode="numeric" maxlength="4" id="curPin" placeholder="••••"/></div>
+      <div class="form-field"><label>Yangi PIN-kod</label><input type="password" inputmode="numeric" maxlength="4" id="newPin1" placeholder="••••"/></div>
+      <div class="form-field"><label>Yangi PIN-kodni tasdiqlang</label><input type="password" inputmode="numeric" maxlength="4" id="newPin2" placeholder="••••"/></div>
+      <div class="modal-actions"><button class="btn btn-gold btn-block" id="submitPinChange">Yangilash</button></div>
+    </div>
+  `);
+  $("#submitPinChange").addEventListener("click", async ()=>{
+    const cur = $("#curPin").value, n1 = $("#newPin1").value, n2 = $("#newPin2").value;
+    if(!/^\d{4}$/.test(cur) || !/^\d{4}$/.test(n1) || !/^\d{4}$/.test(n2)){ toast("4 xonali raqam kiriting","error"); return; }
+    const curHash = await sha256(cur);
+    if(curHash !== DB.pinHash){ toast("Joriy PIN-kod noto'g'ri","error"); return; }
+    if(n1 !== n2){ toast("Yangi PIN-kodlar mos emas","error"); return; }
+    DB.pinHash = await sha256(n1);
+    await saveDB();
+    closeModal();
+    toast("PIN-kod muvaffaqiyatli yangilandi");
+  });
+}
+
+function openChangePasswordModal(){
+  openModal(`
+    <div class="modal-head"><h3>Parolni o'zgartirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="form-field"><label>Joriy parol</label><input type="password" id="curPass" placeholder="••••••••"/></div>
+      <div class="form-field"><label>Yangi parol</label><input type="password" id="newPass1" placeholder="kamida 4 belgi"/></div>
+      <div class="form-field"><label>Yangi parolni tasdiqlang</label><input type="password" id="newPass2" placeholder="••••••••"/></div>
+      <div class="modal-actions"><button class="btn btn-gold btn-block" id="submitPassChange">Yangilash</button></div>
+    </div>
+  `);
+  $("#submitPassChange").addEventListener("click", async ()=>{
+    const acc = ACCOUNTS.find(a=>a.username===CURRENT_USER);
+    const cur = $("#curPass").value, n1 = $("#newPass1").value, n2 = $("#newPass2").value;
+    const curHash = await sha256(cur);
+    if(curHash !== acc.passHash){ toast("Joriy parol noto'g'ri","error"); return; }
+    if(n1.length<4){ toast("Yangi parol kamida 4 belgidan iborat bo'lsin","error"); return; }
+    if(n1 !== n2){ toast("Yangi parollar mos emas","error"); return; }
+    acc.passHash = await sha256(n1);
+    await saveAccounts();
+    closeModal();
+    toast("Parol muvaffaqiyatli yangilandi");
+  });
+}
+
+function openDeleteAccountModal(){
+  openModal(`
+    <div class="modal-head"><h3>Hisobni o'chirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px;">Ushbu hisob va unga tegishli <b>barcha</b> mijozlar, tranzaksiyalar hamda kartalar butunlay o'chiriladi. Bu amalni bekor qilib bo'lmaydi.</p>
+      <div class="form-field"><label>Tasdiqlash uchun parolingizni kiriting</label><input type="password" id="delAccPass" placeholder="••••••••"/></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-danger" id="confirmDelAcc">Hisobni o'chirish</button>
+      </div>
+    </div>
+  `);
+  $("#confirmDelAcc").addEventListener("click", async ()=>{
+    const acc = ACCOUNTS.find(a=>a.username===CURRENT_USER);
+    const pass = $("#delAccPass").value;
+    const hash = await sha256(pass);
+    if(hash !== acc.passHash){ toast("Parol noto'g'ri","error"); return; }
+    try{ await window.storage.delete(dbKeyFor(CURRENT_USER), false); }catch(e){}
+    ACCOUNTS = ACCOUNTS.filter(a=>a.username!==CURRENT_USER);
+    await saveAccounts();
+    await clearSession();
+    closeModal();
+    unlocked = false; DB = null; CURRENT_USER = null;
+    $("#app").classList.add("hidden");
+    toast("Hisob o'chirildi");
+    showAuthScreen();
+  });
+}
+
+/* -------------------- CLIENT MODAL (add/edit) -------------------- */
+function openClientModal(clientId=null){
+  const c = clientId ? DB.clients.find(c=>c.id===clientId) : null;
+  const relation = c ? c.relation : "owed_to_me";
+  openModal(`
+    <div class="modal-head"><h3>${c?"Mijozni tahrirlash":"Yangi mijoz"}</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="relation-toggle">
+        <button type="button" class="sel-owed ${relation==='owed_to_me'?'active':''}" id="relOwed">U menga qarzdor<span class="small">Masalan: do'kon mijozi, qarz oldi</span></button>
+        <button type="button" class="sel-iowe ${relation==='i_owe'?'active':''}" id="relIowe">Men unga qarzdorman<span class="small">Masalan: ta'minotchi, qarz oldim</span></button>
+      </div>
+      <div class="form-field"><label>To'liq ism *</label><input type="text" id="cName" value="${c?escHtml(c.name):""}" placeholder="Masalan: Aziz Karimov"/></div>
+      <div class="form-field"><label>Telefon raqami</label><input type="text" id="cPhone" value="${c?escHtml(c.phone||""):""}" placeholder="+998 90 123 45 67"/></div>
+      <div class="form-field"><label>Manzil</label><input type="text" id="cAddress" value="${c?escHtml(c.address||""):""}" placeholder="Ixtiyoriy"/></div>
+      <div class="form-field"><label>Izoh</label><textarea id="cNote" placeholder="Ixtiyoriy eslatma">${c?escHtml(c.note||""):""}</textarea></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-gold" id="saveClientBtn">${c?"Saqlash":"Qo'shish"}</button>
+      </div>
+    </div>
+  `);
+  let selRel = relation;
+  function updateRel(){
+    $("#relOwed").classList.toggle("active", selRel==="owed_to_me");
+    $("#relIowe").classList.toggle("active", selRel==="i_owe");
+  }
+  $("#relOwed").addEventListener("click", ()=>{ selRel="owed_to_me"; updateRel(); });
+  $("#relIowe").addEventListener("click", ()=>{ selRel="i_owe"; updateRel(); });
+  $("#saveClientBtn").addEventListener("click", async ()=>{
+    const name = $("#cName").value.trim();
+    if(!name){ toast("Ismni kiriting","error"); return; }
+    const phone = $("#cPhone").value.trim();
+    const address = $("#cAddress").value.trim();
+    const note = $("#cNote").value.trim();
+    if(c){
+      c.name=name; c.phone=phone; c.address=address; c.note=note; c.relation=selRel;
+    } else {
+      DB.clients.push({id:uid(), name, phone, address, note, relation:selRel, createdAt:new Date().toISOString()});
+    }
+    await saveDB();
+    closeModal();
+    toast(c?"Ma'lumot yangilandi":"Mijoz qo'shildi");
+    if(c) renderClientDetail(); else navigate("clients");
+  });
+}
+window.openClientModal = openClientModal;
+
+function confirmDeleteClient(id){
+  const c = DB.clients.find(c=>c.id===id);
+  openModal(`
+    <div class="modal-head"><h3>Mijozni o'chirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px;"><b>${escHtml(c.name)}</b> va unga tegishli barcha tranzaksiyalar o'chiriladi. Bu amalni bekor qilib bo'lmaydi.</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-danger" id="confirmDelClient">O'chirish</button>
+      </div>
+    </div>
+  `);
+  $("#confirmDelClient").addEventListener("click", async ()=>{
+    DB.clients = DB.clients.filter(c=>c.id!==id);
+    DB.transactions = DB.transactions.filter(t=>t.clientId!==id);
+    await saveDB();
+    closeModal();
+    toast("Mijoz o'chirildi");
+    navigate("clients");
+  });
+}
+window.confirmDeleteClient = confirmDeleteClient;
+
+/* -------------------- TRANSACTION MODAL -------------------- */
+function openTxModal(clientId, defaultType="debt"){
+  const c = DB.clients.find(cl=>cl.id===clientId);
+  const iowe = c && c.relation==="i_owe";
+  let selType = defaultType;
+  const debtLabel = iowe ? "Qarz oldim" : "Qarz berdim";
+  const paymentLabel = iowe ? "Qarz qaytardim" : "To'lov oldim";
+  openModal(`
+    <div class="modal-head"><h3>${escHtml(c.name)} — yangi tranzaksiya</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <div class="type-toggle" style="margin-bottom:16px">
+        <button type="button" class="sel-a ${selType==='debt'?'active':''}" id="btnTypeDebt">${debtLabel}<span class="small">${iowe?"Mening qarzim oshadi":"Uning qarzi oshadi"}</span></button>
+        <button type="button" class="sel-b ${selType==='payment'?'active':''}" id="btnTypePayment">${paymentLabel}<span class="small">${iowe?"Mening qarzim kamayadi":"Uning qarzi kamayadi"}</span></button>
+      </div>
+      <div class="form-field"><label>Summa (${DB.currency}) *</label><input type="number" id="txAmount" placeholder="0" min="1"/></div>
+      <div class="form-field"><label>Sana</label><input type="date" id="txDate" value="${todayISO()}"/></div>
+      <div class="form-field" id="dueDateField"><label>To'lov muddati (ixtiyoriy)</label><input type="date" id="txDueDate"/></div>
+      <div class="form-field"><label>Izoh</label><input type="text" id="txNote" placeholder="Masalan: telefon uchun"/></div>
+      <div class="form-field" id="cardField">
+        <label>Qaysi karta orqali${DB.cards.length===0?" (kartangiz yo'q)":""}</label>
+        <select id="txCard"><option value="">— karta tanlanmagan —</option>${cardOptionsHtml()}</select>
+      </div>
+      <div class="tx-preview" id="txPreview"></div>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-gold" id="saveTxBtn">Saqlash</button>
+      </div>
+    </div>
+  `);
+  function updatePreview(){
+    const amount = Number($("#txAmount").value)||0;
+    const verb = selType==="debt" ? debtLabel : paymentLabel;
+    $("#txPreview").innerHTML = amount>0
+      ? `${escHtml(c.name)} uchun <b>${verb}</b>: <b>${fmtMoney(amount)}</b> qayd etiladi.`
+      : `Summani kiriting — bu yerda qisqacha ko'rinishini ko'rasiz.`;
+  }
+  function updateToggle(){
+    $("#btnTypeDebt").classList.toggle("active", selType==="debt");
+    $("#btnTypePayment").classList.toggle("active", selType==="payment");
+    $("#dueDateField").style.display = selType==="debt" ? "flex" : "none";
+    updatePreview();
+  }
+  updateToggle();
+  $("#btnTypeDebt").addEventListener("click", ()=>{ selType="debt"; updateToggle(); });
+  $("#btnTypePayment").addEventListener("click", ()=>{ selType="payment"; updateToggle(); });
+  $("#txAmount").addEventListener("input", updatePreview);
+  $("#saveTxBtn").addEventListener("click", async ()=>{
+    const amount = Number($("#txAmount").value);
+    if(!amount || amount<=0){ toast("To'g'ri summa kiriting","error"); return; }
+    const date = $("#txDate").value || todayISO();
+    const dueDate = selType==="debt" ? ($("#txDueDate").value || null) : null;
+    const note = $("#txNote").value.trim();
+    const cardId = $("#txCard").value || null;
+    if(cardId){
+      const card = DB.cards.find(cd=>cd.id===cardId);
+      // "Qarz berdim" (menga qarzdor bo'lmagan holatda) va "qarz qaytardim" (men qarzdor bo'lganda)
+      // hamyondan pul CHIQISHI bilan mos keladi; qolgan holatlar kirim bo'ladi.
+      const outflow = (selType==="debt" && !iowe) || (selType==="payment" && iowe);
+      if(outflow && amount>card.balance){ toast("Tanlangan kartada yetarli mablag' yo'q","error"); return; }
+      card.balance += outflow ? -amount : amount;
+      DB.cardTx.push({id:uid(), type: outflow ? "lend" : "receive", cardId, amount, clientId, note, date:new Date().toISOString()});
+    }
+    DB.transactions.push({id:uid(), clientId, type:selType, amount, date, dueDate, note, cardId});
+    await saveDB();
+    closeModal();
+    toast(selType==="debt" ? (iowe?"Qarz qayd etildi":"Qarz qo'shildi") : (iowe?"Qaytarish qayd etildi":"To'lov qayd etildi"));
+    renderClientDetail();
+  });
+}
+window.openTxModal = openTxModal;
+
+function deleteTx(id){
+  openModal(`
+    <div class="modal-head"><h3>Tranzaksiyani o'chirish</h3><button class="modal-close" onclick="closeModal()">✕</button></div>
+    <div class="modal-body">
+      <p style="margin-bottom:16px;">Ushbu yozuvni o'chirishni xohlaysizmi?</p>
+      <div class="modal-actions">
+        <button class="btn btn-outline" onclick="closeModal()">Bekor qilish</button>
+        <button class="btn btn-danger" id="confirmDelTx">O'chirish</button>
+      </div>
+    </div>
+  `);
+  $("#confirmDelTx").addEventListener("click", async ()=>{
+    DB.transactions = DB.transactions.filter(t=>t.id!==id);
+    await saveDB();
+    closeModal();
+    toast("O'chirildi");
+    renderClientDetail();
+  });
+}
+window.deleteTx = deleteTx;
+
+/* -------------------- MAIN RENDER DISPATCH -------------------- */
+function render(){
+  if(currentPage==="dashboard") renderDashboard();
+  else if(currentPage==="clients") renderClients();
+  else if(currentPage==="clientDetail") renderClientDetail();
+  else if(currentPage==="transactions") renderTransactions();
+  else if(currentPage==="wallet") renderWallet();
+  else if(currentPage==="stats") renderStats();
+  else if(currentPage==="settings") renderSettings();
+}
+
+/* -------------------- GLOBAL EVENTS -------------------- */
+$("#addClientBtn").addEventListener("click", ()=>openClientModal());
+$("#themeToggle").addEventListener("click", async ()=>{
+  DB.theme = DB.theme==="dark" ? "light" : "dark";
+  document.body.classList.toggle("dark", DB.theme==="dark");
+  await saveDB();
+});
+$("#globalSearch").addEventListener("input", (e)=>{
+  searchQuery = e.target.value;
+  if(currentPage==="clients") renderClients();
+  else if(currentPage==="transactions") renderTransactions();
+  else if(searchQuery){ navigate("clients"); }
+});
+$("#lockNowBtn").addEventListener("click", ()=> showLock("enter"));
+
+/* -------------------- INIT -------------------- */
+async function init(){
+  await loadAccounts();
+  const sessionUser = await loadSession();
+  if(sessionUser && ACCOUNTS.some(a=>a.username===sessionUser)){
+    await loginAs(sessionUser);
+    applyAccent();
+  } else {
+    showAuthScreen();
+  }
+}
+init();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+.modal-backdrop{position:fixed; inset:0; background:rgba(14,36,25,.55); z-index:200; display:flex; align-items:center; justify-content:center; padding:20px; backdrop-filter:blur(2px);}
+.modal{background:var(--surface); color:var(--ink); border-radius:18px; width:100%; max-width:420px; max-height:90vh; overflow-y:auto; box-shadow:0 30px 60px -20px rgba(0,0,0,.4);}
+.modal.wide{max-width:520px;}
+.modal-head{display:flex; align-items:center; justify-content:space-between; padding:20px 22px 4px;}
+.modal-head h3{font-family:var(--font-display); font-size:18px; font-weight:600; color:var(--ink);}
+.modal-close{width:30px; height:30px; border-radius:8px; border:none; background:var(--surface-2); color:var(--ink); display:flex; align-items:center; justify-content:center; cursor:pointer;}
+.modal-body{padding:16px 22px 22px;}
+.modal-body p{color:var(--muted);}
+.modal-actions{display:flex; gap:10px; margin-top:6px;}
+.modal-actions .btn{flex:1; justify-content:center;}
+.step-dots{display:flex; gap:6px; padding:0 22px 4px;}
+.step-dots span{height:4px; flex:1; border-radius:3px; background:var(--border);}
+.step-dots span.on{background:var(--gold);}

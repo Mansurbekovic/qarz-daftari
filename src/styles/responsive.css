@@ -1,0 +1,28 @@
+@media(max-width:860px){
+  .stat-grid{grid-template-columns:repeat(2,1fr);}
+  .form-grid{grid-template-columns:1fr;}
+  #app{flex-direction:column;}
+  .sidebar{
+    position:fixed; bottom:0; left:0; right:0; top:auto; height:auto; width:100%;
+    flex-direction:row; align-items:center; justify-content:space-around; padding:8px 6px;
+    z-index:100; border-top:1px solid var(--panel-border);
+  }
+  .brand, .sidebar-foot, .sidebar-user{display:none;}
+  .nav{flex-direction:row; flex:none; width:100%; justify-content:space-around; overflow-x:auto;}
+  .nav-item{flex-direction:column; gap:4px; font-size:9.5px; padding:8px 6px; flex:1; min-width:52px;}
+  .nav-badge{position:absolute; top:2px; right:10px; margin-left:0;}
+  .main{padding-bottom:70px;}
+  .topbar{padding:14px 16px;}
+  .topbar h1{font-size:18px;}
+  .page{padding:18px 16px 40px;}
+  .search-box{max-width:none;}
+  .client-grid{grid-template-columns:1fr 1fr;}
+  .wallet-hero{flex-direction:column; align-items:flex-start;}
+}
+@media(max-width:520px){
+  .stat-grid{grid-template-columns:1fr 1fr;}
+  .client-grid{grid-template-columns:1fr;}
+  .topbar h1{display:none;}
+  .cards-row{grid-template-columns:1fr;}
+  .type-pick{grid-template-columns:1fr;}
+}
