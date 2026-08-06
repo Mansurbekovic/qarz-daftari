@@ -198,14 +198,34 @@ export default function Wallet() {
           bank: opBank,
         }),
       });
-      const result = await response.json();
-      if (!response.ok) throw new Error(result.error || 'To‘lovda xatolik');
 
-      await fetch(`${API_BASE}/api/payments/confirm`, {
+      let result = null;
+      try {
+        result = await response.json();
+      } catch {
+        result = {};
+      }
+
+      if (!response.ok) {
+        throw new Error(result.error || 'To‘lov serveriga ulanib bo‘lmadi');
+      }
+
+      const confirmResponse = await fetch(`${API_BASE}/api/payments/confirm`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ intentId: result.id }),
       });
+
+      let confirmResult = null;
+      try {
+        confirmResult = await confirmResponse.json();
+      } catch {
+        confirmResult = {};
+      }
+
+      if (!confirmResponse.ok) {
+        throw new Error(confirmResult.error || 'To‘lovni tasdiqlashda xatolik');
+      }
 
       addCardTx({ kind: 'online', cardId: opCard, amount, note: opMerchant.trim() || "Noma'lum xizmat" });
       setShowOnlinePay(false);
@@ -215,7 +235,11 @@ export default function Wallet() {
       setOpCardCvv('');
       toast(`To'lov muvaffaqiyatli amalga oshirildi (${result.id})`);
     } catch (err) {
-      toast(err.message || 'To‘lovda xatolik', 'error');
+      const message = err?.message || 'To‘lovda xatolik';
+      const friendlyMessage = message.includes('Failed to fetch') || message.includes('fetch')
+        ? 'Server bilan bog‘lanishda xatolik. Iltimos, backendni ishga tushiring yoki keyinroq urinib ko‘ring.'
+        : message;
+      toast(friendlyMessage, 'error');
     }
   };
 

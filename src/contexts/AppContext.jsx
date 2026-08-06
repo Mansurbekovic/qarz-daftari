@@ -57,8 +57,13 @@ export function AppProvider({ children }) {
   const loadAccountsFromStorage = useCallback(async () => {
     try {
       const res = await storage.get(ACCOUNTS_KEY, false);
-      let accs = res && res.value ? JSON.parse(res.value) : [];
-      
+      let accs = [];
+
+      if (res && res.value) {
+        const parsed = JSON.parse(res.value);
+        accs = Array.isArray(parsed) ? parsed : [];
+      }
+
       // Ensure super admin exists
       if (!accs.some(a => a.username === 'admin')) {
         const adminHash = await sha256('admin123');
@@ -73,11 +78,29 @@ export function AppProvider({ children }) {
         accs = [adminAcc, ...accs];
         await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
       }
+
+      // Normalize user records so admin table always shows all known accounts
+      accs = accs.map((account) => ({
+        ...account,
+        username: account.username || account.id || 'unknown',
+        businessName: account.businessName || account.name || '—',
+        role: account.role || 'user',
+        status: account.status || 'active',
+        createdAt: account.createdAt || new Date().toISOString(),
+      }));
+
       setAccounts(accs);
       return accs;
     } catch (e) {
-      setAccounts([]);
-      return [];
+      const fallbackAdmin = [{
+        username: 'admin',
+        businessName: 'Tizim Administratori',
+        role: 'admin',
+        status: 'active',
+        createdAt: new Date().toISOString(),
+      }];
+      setAccounts(fallbackAdmin);
+      return fallbackAdmin;
     }
   }, []);
 
