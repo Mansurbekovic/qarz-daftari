@@ -1,6 +1,6 @@
 import React from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { NAV_ITEMS } from '../../utils/constants';
+import { NAV_ITEMS, APP_VERSION } from '../../utils/constants';
 
 export default function Sidebar({ onLogoutClick }) {
   const { currentPage, navigate, totals, lockApp, currentUser, db, isAdmin } = useApp();
@@ -13,7 +13,10 @@ export default function Sidebar({ onLogoutClick }) {
       <div className="brand">
         <div className="brand-mark">QD</div>
         <div>
-          <div className="brand-name">Qarz Daftari</div>
+          <div className="brand-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            Qarz Daftari
+            <span className="version-badge">{APP_VERSION}</span>
+          </div>
           <div className="brand-sub">{db?.businessName || 'Hisob-kitob tizimi'}</div>
         </div>
       </div>
@@ -46,7 +49,7 @@ export default function Sidebar({ onLogoutClick }) {
       <div className="sidebar-foot">
         <div className="sidebar-user">
           <b>{currentUser || '—'}</b>
-          {isAdmin ? <span style={{ color: 'var(--gold)', fontWeight: 800 }}> [ADMIN]</span> : 'hisobingiz'}
+          {isAdmin ? <span style={{ color: 'var(--gold)', fontWeight: 800 }}> [ADMIN]</span> : ' hisobingiz'}
         </div>
         <button className="nav-item" onClick={lockApp}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">

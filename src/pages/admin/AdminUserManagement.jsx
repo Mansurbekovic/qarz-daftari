@@ -1,6 +1,8 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { fmtDate, initials } from '../../utils/helpers';
+import { fmtDate, initials, fmtMoney } from '../../utils/helpers';
+import { storage } from '../../utils/storage';
+import UserInspectorModal from '../../components/modals/UserInspectorModal';
 
 export default function AdminUserManagement() {
   const {
@@ -13,6 +15,42 @@ export default function AdminUserManagement() {
   const [selectedUserForAction, setSelectedUserForAction] = useState(null);
   const [actionType, setActionType] = useState(null); // 'pass' | 'pin'
   const [newPassInput, setNewPassInput] = useState('123456');
+  
+  const [inspectUsername, setInspectUsername] = useState(null);
+  const [userStats, setUserStats] = useState({});
+
+  useEffect(() => {
+    async function loadStats() {
+      const stats = {};
+      for (const acc of accounts) {
+        try {
+          const res = await storage.get('qd-db::' + acc.username, false);
+          if (res && res.value) {
+            const data = JSON.parse(res.value);
+            const clients = data.clients || [];
+            const cards = data.cards || [];
+            const transactions = data.transactions || [];
+            let totalOwed = 0;
+            for (const c of clients) {
+              let bal = 0;
+              for (const t of transactions) {
+                if (t.clientId !== c.id) continue;
+                bal += t.type === 'debt' ? Number(t.amount) : -Number(t.amount);
+              }
+              if (bal > 0) totalOwed += bal;
+            }
+            stats[acc.username] = { clients: clients.length, cards: cards.length, totalOwed };
+          } else {
+            stats[acc.username] = { clients: 0, cards: 0, totalOwed: 0 };
+          }
+        } catch (e) {
+          stats[acc.username] = { clients: 0, cards: 0, totalOwed: 0 };
+        }
+      }
+      setUserStats(stats);
+    }
+    if (accounts.length > 0) loadStats();
+  }, [accounts]);
 
   let filtered = accounts.slice();
   if (searchTerm) {
@@ -91,6 +129,9 @@ export default function AdminUserManagement() {
               <th>Biznes Nomi</th>
               <th>Roli</th>
               <th>Ro'yxatdan O'tgan</th>
+              <th>Mijozlar</th>
+              <th>Kartalar</th>
+              <th>Umumiy Qarz</th>
               <th>Xavf Holati</th>
               <th>Amallar (Admin Controls)</th>
             </tr>
@@ -122,6 +163,11 @@ export default function AdminUserManagement() {
                   <td style={{ color: 'var(--muted)', fontSize: '12px' }}>
                     {fmtDate(acc.createdAt)}
                   </td>
+                  <td>{userStats[acc.username]?.clients || 0}</td>
+                  <td>{userStats[acc.username]?.cards || 0}</td>
+                  <td style={{ fontWeight: 600, color: 'var(--red)' }}>
+                    {fmtMoney(userStats[acc.username]?.totalOwed || 0)} so'm
+                  </td>
                   <td>
                     <span className={`risk-badge ${risk.level}`}>
                       {risk.label}
@@ -129,6 +175,13 @@ export default function AdminUserManagement() {
                   </td>
                   <td>
                     <div style={{ display: 'flex', gap: '6px', flexWrap: 'wrap' }}>
+                      <button
+                        className="btn btn-sm btn-outline"
+                        onClick={() => setInspectUsername(acc.username)}
+                      >
+                        📊 Inspect
+                      </button>
+                      
                       {acc.status === 'banned' ? (
                         <button
                           className="btn btn-sm btn-teal"
@@ -216,6 +269,13 @@ export default function AdminUserManagement() {
             </div>
           </div>
         </div>
+      )}
+
+      {inspectUsername && (
+        <UserInspectorModal 
+          targetUsername={inspectUsername} 
+          onClose={() => setInspectUsername(null)} 
+        />
       )}
     </div>
   );

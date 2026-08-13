@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { fmtMoney, fmtDate, initials } from '../utils/helpers';
 
@@ -7,6 +7,23 @@ export default function Dashboard({ onOpenAddClient }) {
   const t = totals();
   const recent = [...db.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
   const overdueClients = db.clients.filter(c => clientIsOverdue(c.id));
+
+  // Currency converter state
+  const [usdRate] = useState(12850); // 1 USD = 12 850 UZS
+  const [usdInput, setUsdInput] = useState('');
+  const [uzsInput, setUzsInput] = useState('');
+
+  const handleUsdChange = (val) => {
+    setUsdInput(val);
+    if (!val || isNaN(val)) setUzsInput('');
+    else setUzsInput(Math.round(Number(val) * usdRate));
+  };
+
+  const handleUzsChange = (val) => {
+    setUzsInput(val);
+    if (!val || isNaN(val)) setUsdInput('');
+    else setUsdInput((Number(val) / usdRate).toFixed(2));
+  };
 
   const txLabel = (tx, client) => {
     const iowe = client && client.relation === 'i_owe';
@@ -35,14 +52,45 @@ export default function Dashboard({ onOpenAddClient }) {
         <div className="stat-card">
           <div className="stat-label">Kartalarimda</div>
           <div className="stat-value teal">{fmtMoney(totalCardBalance(), db.currency)}</div>
-          <div className="stat-note">{db.cards.length} ta karta</div>
+          <div className="stat-note">{db.cards.length} ta karta ulangan</div>
+        </div>
+      </div>
+
+      {/* Currency Converter Widget */}
+      <div className="settings-card" style={{ marginTop: '20px', marginBottom: '20px', background: 'var(--surface-2)' }}>
+        <div className="section-title" style={{ marginTop: 0, justifyContent: 'space-between' }}>
+          <span>💱 Valyuta Kalkulyatori (USD / UZS)</span>
+          <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>1 USD = {fmtMoney(usdRate, "so'm")}</span>
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'center' }}>
+          <div className="form-field" style={{ marginBottom: 0 }}>
+            <label>AQSH Dollari ($ USD)</label>
+            <input
+              type="number"
+              placeholder="100"
+              value={usdInput}
+              onChange={e => handleUsdChange(e.target.value)}
+            />
+          </div>
+          <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>
+            ⇄
+          </div>
+          <div className="form-field" style={{ marginBottom: 0 }}>
+            <label>O'zbek so'mi (UZS)</label>
+            <input
+              type="number"
+              placeholder="1 285 000"
+              value={uzsInput}
+              onChange={e => handleUzsChange(e.target.value)}
+            />
+          </div>
         </div>
       </div>
 
       {t.overdueCount > 0 && db.notifications && (
         <>
           <div className="section-title">
-            ⚠ Muddati o'tgan qarzlar
+            ⚠ Muddati o'tgan qarzlar ({t.overdueCount} ta)
             <span className="link" onClick={() => navigate('clients')}>Barchasini ko'rish</span>
           </div>
           <div className="ledger-card">
@@ -110,3 +158,4 @@ export default function Dashboard({ onOpenAddClient }) {
     </div>
   );
 }
+

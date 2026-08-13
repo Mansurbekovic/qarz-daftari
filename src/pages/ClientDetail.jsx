@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
-import { fmtMoney, fmtDate, initials, todayISO } from '../utils/helpers';
+import { fmtMoney, fmtDate, initials, todayISO, telegramReminderLink, smsReminderText } from '../utils/helpers';
 
 export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
   const { db, currentClientId, navigate, clientBalance, clientTransactions, clientIsOverdue, deleteTransaction, deleteClient } = useApp();
@@ -32,6 +32,40 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
   const txLabel = (tx) => {
     if (tx.type === 'debt') return iowe ? 'Qarz oldim' : 'Qarz berdim';
     return iowe ? 'Qarzni qaytardim' : "To'lov qabul qildim";
+  };
+
+  const handleSendTelegramReminder = () => {
+    if (bal <= 0) {
+      toast('Qarzdorlik yo\'q', 'info');
+      return;
+    }
+    const link = telegramReminderLink(c.name, Math.abs(bal), db.currency);
+    window.open(link, '_blank');
+  };
+
+  const handleCopySmsReminder = () => {
+    if (bal <= 0) {
+      toast('Qarzdorlik yo\'q', 'info');
+      return;
+    }
+    const text = smsReminderText(c.name, Math.abs(bal), db.currency);
+    navigator.clipboard.writeText(text);
+    toast('SMS eslatma matni nusxalandi');
+  };
+
+  const handleExportClientCsv = () => {
+    let csv = `Sana,Turi,Summa,Izoh\n`;
+    txs.forEach(t => {
+      csv += `"${t.date}","${txLabel(t)}","${t.amount}","${t.note || ''}"\n`;
+    });
+    const blob = new Blob([csv], { type: 'text/csv;charset=utf-8;' });
+    const url = URL.createObjectURL(blob);
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = `qarz-hisobot-${c.name}-${todayISO()}.csv`;
+    a.click();
+    URL.revokeObjectURL(url);
+    toast('Mijoz hisoboti CSV formatida saqlandi');
   };
 
   const handleDeleteClient = () => {
@@ -89,8 +123,21 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
         <button className="btn btn-gold" onClick={() => onOpenTxModal(c.id, 'payment')}>
           {iowe ? "+ Qarz qaytarish" : "+ To'lov qabul qilish"}
         </button>
+        {!iowe && bal > 0 && (
+          <>
+            <button className="btn btn-teal" onClick={handleSendTelegramReminder}>
+              ✈️ Telegram Eslatma
+            </button>
+            <button className="btn btn-outline" onClick={handleCopySmsReminder}>
+              💬 SMS nusxa
+            </button>
+          </>
+        )}
+        <button className="btn btn-outline" onClick={handleExportClientCsv}>
+          📥 CSV Hisobot
+        </button>
         <button className="btn btn-outline" onClick={() => onOpenEditClient(c.id)}>
-          Ma'lumotni tahrirlash
+          Tahrirlash
         </button>
         <button
           className="btn btn-outline"

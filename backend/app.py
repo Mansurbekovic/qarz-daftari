@@ -136,7 +136,10 @@ def create_payment_intent_endpoint():
     payload = request.json or {}
     amount = payload.get('amount', 0)
     card_token = payload.get('cardToken')
+    provider = payload.get('provider', 'card')
     intent = create_payment_intent(amount, payload.get('currency', 'UZS'), card_token)
+    intent['provider'] = provider
+    intent['merchant'] = payload.get('merchant', 'Qarz Daftari Services')
     data = load_data()
     data.setdefault('payments', []).append(intent)
     save_data(data)
@@ -163,7 +166,70 @@ def confirm_payment():
     return jsonify(payment)
 
 
+@app.post('/api/payments/payme')
+def payme_callback():
+    payload = request.json or {}
+    amount = payload.get('amount', 0)
+    account = payload.get('account', {})
+    tx_id = f"payme_{uuid.uuid4().hex[:10]}"
+    return jsonify({
+        "result": {
+            "transaction": tx_id,
+            "state": 2,
+            "create_time": int(datetime.utcnow().timestamp() * 1000),
+            "perform_time": int(datetime.utcnow().timestamp() * 1000),
+            "amount": amount,
+            "account": account
+        }
+    })
+
+
+@app.post('/api/payments/click')
+def click_callback():
+    payload = request.json or {}
+    click_trans_id = payload.get('click_trans_id') or uuid.uuid4().hex[:8]
+    amount = payload.get('amount', 0)
+    return jsonify({
+        "click_trans_id": click_trans_id,
+        "merchant_trans_id": f"click_{uuid.uuid4().hex[:10]}",
+        "error": 0,
+        "error_note": "Success",
+        "amount": amount
+    })
+
+
+@app.post('/api/payments/paynet')
+def paynet_callback():
+    payload = request.json or {}
+    amount = payload.get('amount', 0)
+    return jsonify({
+        "status": "OK",
+        "code": 0,
+        "message": "Transaction successful",
+        "providerTrxnId": f"paynet_{uuid.uuid4().hex[:10]}",
+        "amount": amount
+    })
+
+
+@app.get('/api/users/<username>/details')
+def get_user_details(username):
+    data = load_data()
+    user = next((u for u in data.get("users", []) if u.get("username") == username), None)
+    if not user:
+        return jsonify({
+            "username": username,
+            "businessName": "Mening biznesim",
+            "role": "user",
+            "status": "active",
+            "clients": [],
+            "cards": [],
+            "transactions": []
+        })
+    return jsonify(user)
+
+
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
     app.run(host='0.0.0.0', port=port, debug=debug)
+

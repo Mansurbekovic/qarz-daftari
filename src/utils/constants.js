@@ -1,3 +1,5 @@
+export const APP_VERSION = 'v1.2';
+
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Bosh sahifa', icon: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>' },
   { id: 'clients', label: 'Mijozlar', icon: '<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15.5 14.2c2.7.4 4.6 2.4 4.6 5.3"/>' },
@@ -31,6 +33,19 @@ export const ACCENTS = {
   rust: '#8B3A2B',
   plum: '#6A3E7A',
   blue: '#2A5FA5',
+};
+
+export const CARD_BIN_PREFIXES = {
+  '8600': 'Uzcard',
+  '9860': 'Humo',
+  '4': 'Visa',
+  '5': 'Mastercard',
+};
+
+export const PAYMENT_PROVIDERS = {
+  payme: { name: 'Payme', color: '#00CCCC', icon: '💎', url: 'https://payme.uz' },
+  click: { name: 'Click', color: '#00B5E2', icon: '🔵', url: 'https://click.uz' },
+  paynet: { name: 'Paynet', color: '#ED1C24', icon: '🔴', url: 'https://paynet.uz' },
 };
 
 export const PAGE_TITLES = {

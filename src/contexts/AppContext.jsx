@@ -31,6 +31,9 @@ export function AppProvider({ children }) {
   const [systemConfig, setSystemConfig] = useState(defaultSystemConfig());
   const [systemLogs, setSystemLogs] = useState([]);
 
+  // Notification Center
+  const [notifications, setNotifications] = useState([]);
+
   const saveTimerRef = useRef(null);
   const autoLockRef = useRef(null);
   const [initialized, setInitialized] = useState(false);
@@ -673,6 +676,37 @@ export function AppProvider({ children }) {
     toast('Tizim xavfsizlik sozlamalari yangilandi');
   }, [systemConfig, saveSystemConfig, toast]);
 
+  // --- Notification Center ---
+  const addNotification = useCallback((type, message) => {
+    const notif = {
+      id: uid(),
+      type, // 'payment' | 'debt' | 'overdue' | 'admin' | 'system'
+      message,
+      timestamp: new Date().toISOString(),
+      read: false,
+    };
+    setNotifications(prev => [notif, ...prev].slice(0, 50));
+  }, []);
+
+  const markAllNotificationsRead = useCallback(() => {
+    setNotifications(prev => prev.map(n => ({ ...n, read: true })));
+  }, []);
+
+  // Admin Delete User
+  const adminDeleteUser = useCallback(async (targetUsername) => {
+    if (targetUsername === 'admin') {
+      toast('Admin hisobini o\'chirib bo\'lmaydi!', 'error');
+      return;
+    }
+    try { await storage.delete(dbKeyFor(targetUsername), false); } catch (e) { /* ignore */ }
+    const updated = accounts.filter(a => a.username !== targetUsername);
+    setAccounts(updated);
+    await saveAccountsToStorage(updated);
+    addSecurityLog('ADMIN_DELETE_USER', currentUser, `${targetUsername} hisobi admin tomonidan o'chirildi`, 'danger');
+    addNotification('admin', `${targetUsername} hisobi o'chirildi`);
+    toast(`${targetUsername} hisobi o'chirildi`);
+  }, [accounts, currentUser, saveAccountsToStorage, addSecurityLog, addNotification, toast]);
+
   // Init
   useEffect(() => {
     async function init() {
@@ -723,7 +757,10 @@ export function AppProvider({ children }) {
     updateDB,
     // Admin functions
     adminBlockUser, adminUnblockUser, adminResetUserPassword, adminResetUserPin,
+    adminDeleteUser,
     toggleSystemLockdown, toggleMaintenance, updateSystemConfigValues, addSecurityLog,
+    // Notifications
+    notifications, addNotification, markAllNotificationsRead,
   };
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
