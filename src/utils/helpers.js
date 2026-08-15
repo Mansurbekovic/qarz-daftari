@@ -162,3 +162,14 @@ export function sanitizeInput(text) {
     '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;', '&': '&amp;'
   }[c]));
 }
+
+// Get dynamic API base URL for multi-device network access
+export function getApiBase() {
+  if (typeof window !== 'undefined' && window.location) {
+    const host = window.location.hostname || '127.0.0.1';
+    const protocol = window.location.protocol || 'http:';
+    return `${protocol}//${host}:5000`;
+  }
+  return 'http://127.0.0.1:5000';
+}
+

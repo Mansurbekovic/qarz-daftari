@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
-import { fmtMoney, fmtDate, initials } from '../../utils/helpers';
+import { fmtMoney, fmtDate, initials, getApiBase } from '../../utils/helpers';
 import { storage } from '../../utils/storage';
 
 export default function UserInspectorModal({ targetUsername, onClose }) {
@@ -18,9 +18,24 @@ export default function UserInspectorModal({ targetUsername, onClose }) {
     async function loadData() {
       try {
         setLoading(true);
+        let data = null;
         const res = await storage.get('qd-db::' + targetUsername, false);
         if (res && res.value) {
-          setUserData(JSON.parse(res.value));
+          data = JSON.parse(res.value);
+        }
+
+        try {
+          const backendRes = await fetch(`${getApiBase()}/api/users/${targetUsername}/db`);
+          if (backendRes.ok) {
+            const serverData = await backendRes.json();
+            if (serverData && Object.keys(serverData).length > 0) {
+              data = { ...(data || {}), ...serverData };
+            }
+          }
+        } catch (e) { /* ignore backend offline */ }
+
+        if (data) {
+          setUserData(data);
         } else {
           setError("Foydalanuvchi ma'lumotlari topilmadi.");
         }
@@ -33,6 +48,7 @@ export default function UserInspectorModal({ targetUsername, onClose }) {
     }
     loadData();
   }, [targetUsername]);
+
 
   const handleBlockToggle = () => {
     if (!targetAccount) return;

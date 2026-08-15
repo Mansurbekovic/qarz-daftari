@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { fmtDate, initials, fmtMoney } from '../../utils/helpers';
+import { fmtDate, initials, fmtMoney, getApiBase } from '../../utils/helpers';
 import { storage } from '../../utils/storage';
 import UserInspectorModal from '../../components/modals/UserInspectorModal';
 
@@ -31,9 +31,23 @@ export default function AdminUserManagement() {
       const stats = {};
       for (const acc of accounts) {
         try {
+          let data = null;
           const res = await storage.get('qd-db::' + acc.username, false);
           if (res && res.value) {
-            const data = JSON.parse(res.value);
+            data = JSON.parse(res.value);
+          }
+
+          try {
+            const backendRes = await fetch(`${getApiBase()}/api/users/${acc.username}/db`);
+            if (backendRes.ok) {
+              const serverData = await backendRes.json();
+              if (serverData && Object.keys(serverData).length > 0) {
+                data = { ...(data || {}), ...serverData };
+              }
+            }
+          } catch (e) { /* ignore backend offline */ }
+
+          if (data) {
             const clients = data.clients || [];
             const cards = data.cards || [];
             const transactions = data.transactions || [];
@@ -58,6 +72,7 @@ export default function AdminUserManagement() {
     }
     if (accounts.length > 0) loadStats();
   }, [accounts]);
+
 
   let filtered = accounts.slice();
   if (searchTerm) {

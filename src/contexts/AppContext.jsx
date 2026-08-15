@@ -1,12 +1,13 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { storage } from '../utils/storage';
 import { sha256 } from '../utils/crypto';
-import { uid, genCardNumber, futureExpiry } from '../utils/helpers';
+import { uid, genCardNumber, futureExpiry, getApiBase } from '../utils/helpers';
 import {
   ACCOUNTS_KEY, SESSION_KEY, SYSTEM_CONFIG_KEY, SYSTEM_LOGS_KEY,
   dbKeyFor, defaultDB, defaultSystemConfig, ACCENTS
 } from '../utils/constants';
 import { useToast } from './ToastContext';
+
 
 const AppContext = createContext();
 
@@ -100,7 +101,7 @@ export function AppProvider({ children }) {
 
       // 2. Auto-discover users from Flask Backend API if available
       try {
-        const backendRes = await fetch('http://127.0.0.1:5000/api/users');
+        const backendRes = await fetch(`${getApiBase()}/api/users`);
         if (backendRes.ok) {
           const backendUsers = await backendRes.json();
           if (Array.isArray(backendUsers)) {
@@ -145,6 +146,16 @@ export function AppProvider({ children }) {
       }));
 
       await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
+      
+      // Also sync back to server
+      try {
+        await fetch(`${getApiBase()}/api/users/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accs)
+        });
+      } catch (e) { /* ignore */ }
+
       setAccounts(accs);
       return accs;
     } catch (e) {
@@ -163,6 +174,13 @@ export function AppProvider({ children }) {
   const saveAccountsToStorage = useCallback(async (accs) => {
     try {
       await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
+      try {
+        await fetch(`${getApiBase()}/api/users/sync`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(accs)
+        });
+      } catch (e) { /* ignore */ }
     } catch (e) {
       toast('Hisoblar ro\'yxatini saqlashda xatolik', 'error');
     }
@@ -217,12 +235,23 @@ export function AppProvider({ children }) {
   const loadDBFromStorage = useCallback(async (username) => {
     try {
       const res = await storage.get(dbKeyFor(username), false);
-      let data;
+      let data = null;
       if (res && res.value) {
         data = { ...defaultDB(), ...JSON.parse(res.value) };
-      } else {
-        data = defaultDB();
       }
+
+      // Sync with central backend server
+      try {
+        const backendRes = await fetch(`${getApiBase()}/api/users/${username}/db`);
+        if (backendRes.ok) {
+          const serverData = await backendRes.json();
+          if (serverData && Object.keys(serverData).length > 0) {
+            data = { ...defaultDB(), ...(data || {}), ...serverData };
+          }
+        }
+      } catch (e) { /* ignore */ }
+
+      if (!data) data = defaultDB();
       if (!data.clients) data.clients = [];
       if (!data.transactions) data.transactions = [];
       if (!data.cards) data.cards = [];
@@ -239,10 +268,19 @@ export function AppProvider({ children }) {
   }, []);
 
   const saveDBToStorage = useCallback(async (data, username) => {
+    const targetUser = username || currentUser;
+    if (!targetUser) return;
     clearTimeout(saveTimerRef.current);
     saveTimerRef.current = setTimeout(async () => {
       try {
-        await storage.set(dbKeyFor(username || currentUser), JSON.stringify(data), false);
+        await storage.set(dbKeyFor(targetUser), JSON.stringify(data), false);
+        try {
+          await fetch(`${getApiBase()}/api/users/${targetUser}/db`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(data)
+          });
+        } catch (e) { /* ignore */ }
       } catch (e) {
         toast('Saqlashda xatolik yuz berdi', 'error');
       }

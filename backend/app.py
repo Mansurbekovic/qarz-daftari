@@ -49,17 +49,87 @@ def get_users():
 def create_user():
     payload = request.json or {}
     data = load_data()
-    user = {
-        "id": str(len(data["users"]) + 1),
-        "username": payload.get("username"),
-        "businessName": payload.get("businessName", "Mening biznesim"),
-        "role": payload.get("role", "user"),
-        "status": payload.get("status", "active"),
-        "createdAt": datetime.utcnow().isoformat(),
-    }
-    data["users"].append(user)
+    username = payload.get("username")
+    if not username:
+        return jsonify({"error": "username_required"}), 400
+
+    existing = next((u for u in data.get("users", []) if u.get("username") == username), None)
+    if existing:
+        existing.update({
+            "businessName": payload.get("businessName", existing.get("businessName")),
+            "role": payload.get("role", existing.get("role")),
+            "status": payload.get("status", existing.get("status")),
+            "passHash": payload.get("passHash", existing.get("passHash")),
+        })
+        user = existing
+    else:
+        user = {
+            "id": str(len(data["users"]) + 1),
+            "username": username,
+            "businessName": payload.get("businessName", "Mening biznesim"),
+            "passHash": payload.get("passHash", ""),
+            "role": payload.get("role", "user"),
+            "status": payload.get("status", "active"),
+            "createdAt": datetime.utcnow().isoformat(),
+        }
+        data["users"].append(user)
+
     save_data(data)
     return jsonify(user), 201
+
+
+@app.post('/api/users/sync')
+def sync_users():
+    payload = request.json or []
+    if not isinstance(payload, list):
+        return jsonify({"error": "invalid_payload"}), 400
+    
+    data = load_data()
+    current_users = data.get("users", [])
+    
+    for u in payload:
+        uname = u.get("username")
+        if not uname:
+            continue
+        ex = next((item for item in current_users if item.get("username") == uname), None)
+        if ex:
+            ex.update({
+                "businessName": u.get("businessName", ex.get("businessName")),
+                "role": u.get("role", ex.get("role")),
+                "status": u.get("status", ex.get("status")),
+                "passHash": u.get("passHash", ex.get("passHash")),
+            })
+        else:
+            current_users.append({
+                "id": str(len(current_users) + 1),
+                "username": uname,
+                "businessName": u.get("businessName", "Mening biznesim"),
+                "passHash": u.get("passHash", ""),
+                "role": u.get("role", "user"),
+                "status": u.get("status", "active"),
+                "createdAt": u.get("createdAt", datetime.utcnow().isoformat()),
+            })
+
+    data["users"] = current_users
+    save_data(data)
+    return jsonify(current_users)
+
+
+@app.get('/api/users/<username>/db')
+def get_user_db(username):
+    data = load_data()
+    user_dbs = data.get("user_dbs", {})
+    return jsonify(user_dbs.get(username, {}))
+
+
+@app.post('/api/users/<username>/db')
+def save_user_db(username):
+    payload = request.json or {}
+    data = load_data()
+    data.setdefault("user_dbs", {})[username] = payload
+    save_data(data)
+    return jsonify({"status": "saved", "username": username})
+
 
 
 @app.get('/api/clients')
