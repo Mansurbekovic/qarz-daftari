@@ -37,7 +37,13 @@ export default function App() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   if (!initialized || authState === 'loading') {
-    return null;
+    return (
+      <div style={{
+        display: 'flex', alignItems: 'center', justifyContent: 'center', height: '100vh',
+      }}>
+        <div className="spinner" />
+      </div>
+    );
   }
 
   if (authState === 'auth') {

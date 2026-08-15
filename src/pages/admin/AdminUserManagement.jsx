@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
-import { fmtDate, initials, fmtMoney, getApiBase } from '../../utils/helpers';
+import { fmtDate, initials, fmtMoney, getApiBase, fetchWithTimeout } from '../../utils/helpers';
 import { storage } from '../../utils/storage';
 import UserInspectorModal from '../../components/modals/UserInspectorModal';
 
@@ -38,7 +38,7 @@ export default function AdminUserManagement() {
           }
 
           try {
-            const backendRes = await fetch(`${getApiBase()}/api/users/${acc.username}/db`);
+            const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users/${acc.username}/db`);
             if (backendRes.ok) {
               const serverData = await backendRes.json();
               if (serverData && Object.keys(serverData).length > 0) {

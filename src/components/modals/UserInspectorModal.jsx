@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
-import { fmtMoney, fmtDate, initials, getApiBase } from '../../utils/helpers';
+import { fmtMoney, fmtDate, initials, getApiBase, fetchWithTimeout } from '../../utils/helpers';
 import { storage } from '../../utils/storage';
 
 export default function UserInspectorModal({ targetUsername, onClose }) {
@@ -25,7 +25,7 @@ export default function UserInspectorModal({ targetUsername, onClose }) {
         }
 
         try {
-          const backendRes = await fetch(`${getApiBase()}/api/users/${targetUsername}/db`);
+          const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users/${targetUsername}/db`);
           if (backendRes.ok) {
             const serverData = await backendRes.json();
             if (serverData && Object.keys(serverData).length > 0) {

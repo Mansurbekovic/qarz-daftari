@@ -1,6 +1,7 @@
 import React from 'react';
 import ReactDOM from 'react-dom/client';
 import App from './App';
+import ErrorBoundary from './components/ErrorBoundary';
 import { ToastProvider } from './contexts/ToastContext';
 import { AppProvider } from './contexts/AppContext';
 
@@ -22,10 +23,12 @@ import './styles/admin.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>
-    <ToastProvider>
-      <AppProvider>
-        <App />
-      </AppProvider>
-    </ToastProvider>
+    <ErrorBoundary>
+      <ToastProvider>
+        <AppProvider>
+          <App />
+        </AppProvider>
+      </ToastProvider>
+    </ErrorBoundary>
   </React.StrictMode>
 );

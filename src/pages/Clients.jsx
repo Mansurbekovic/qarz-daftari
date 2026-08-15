@@ -8,7 +8,7 @@ export default function Clients({ onOpenAddClient }) {
   let list = db.clients.slice();
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
-    list = list.filter(c => c.name.toLowerCase().includes(q) || (c.phone || '').includes(q));
+    list = list.filter(c => (c.name || '').toLowerCase().includes(q) || (c.phone || '').includes(q));
   }
   if (clientFilter === 'owed') list = list.filter(c => c.relation !== 'i_owe' && clientBalance(c.id) > 0);
   if (clientFilter === 'iowe') list = list.filter(c => c.relation === 'i_owe' && clientBalance(c.id) > 0);

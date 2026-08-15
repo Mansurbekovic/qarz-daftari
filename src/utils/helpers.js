@@ -173,3 +173,10 @@ export function getApiBase() {
   return 'http://127.0.0.1:5000';
 }
 
+// fetch with a hard timeout so an unreachable optional backend never hangs the UI
+export function fetchWithTimeout(url, options = {}, timeoutMs = 2500) {
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), timeoutMs);
+  return fetch(url, { ...options, signal: controller.signal }).finally(() => clearTimeout(timer));
+}
+
