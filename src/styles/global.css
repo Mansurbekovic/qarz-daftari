@@ -21,3 +21,9 @@ input:-webkit-autofill{
 ::selection{background:var(--gold-soft);}
 ::-webkit-scrollbar{width:8px; height:8px;}
 ::-webkit-scrollbar-thumb{background:var(--border); border-radius:8px;}
+.spinner{
+  width:36px; height:36px; border-radius:50%;
+  border:3px solid var(--border); border-top-color:var(--gold);
+  animation:spin .8s linear infinite;
+}
+@keyframes spin{to{transform:rotate(360deg);}}

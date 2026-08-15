@@ -1,7 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
 import { storage } from '../utils/storage';
 import { sha256 } from '../utils/crypto';
-import { uid, genCardNumber, futureExpiry, getApiBase } from '../utils/helpers';
+import { uid, genCardNumber, futureExpiry, getApiBase, fetchWithTimeout } from '../utils/helpers';
 import {
   ACCOUNTS_KEY, SESSION_KEY, SYSTEM_CONFIG_KEY, SYSTEM_LOGS_KEY,
   dbKeyFor, defaultDB, defaultSystemConfig, ACCENTS
@@ -101,7 +101,7 @@ export function AppProvider({ children }) {
 
       // 2. Auto-discover users from Flask Backend API if available
       try {
-        const backendRes = await fetch(`${getApiBase()}/api/users`);
+        const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users`);
         if (backendRes.ok) {
           const backendUsers = await backendRes.json();
           if (Array.isArray(backendUsers)) {
@@ -149,7 +149,7 @@ export function AppProvider({ children }) {
       
       // Also sync back to server
       try {
-        await fetch(`${getApiBase()}/api/users/sync`, {
+        await fetchWithTimeout(`${getApiBase()}/api/users/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(accs)
@@ -175,7 +175,7 @@ export function AppProvider({ children }) {
     try {
       await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
       try {
-        await fetch(`${getApiBase()}/api/users/sync`, {
+        await fetchWithTimeout(`${getApiBase()}/api/users/sync`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify(accs)
@@ -242,7 +242,7 @@ export function AppProvider({ children }) {
 
       // Sync with central backend server
       try {
-        const backendRes = await fetch(`${getApiBase()}/api/users/${username}/db`);
+        const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users/${username}/db`);
         if (backendRes.ok) {
           const serverData = await backendRes.json();
           if (serverData && Object.keys(serverData).length > 0) {
@@ -275,7 +275,7 @@ export function AppProvider({ children }) {
       try {
         await storage.set(dbKeyFor(targetUser), JSON.stringify(data), false);
         try {
-          await fetch(`${getApiBase()}/api/users/${targetUser}/db`, {
+          await fetchWithTimeout(`${getApiBase()}/api/users/${targetUser}/db`, {
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify(data)
