@@ -7,7 +7,8 @@ import UserInspectorModal from '../../components/modals/UserInspectorModal';
 export default function AdminUserManagement() {
   const {
     accounts, adminBlockUser, adminUnblockUser,
-    adminResetUserPassword, adminResetUserPin, currentUser
+    adminResetUserPassword, adminResetUserPin, currentUser,
+    loadAccountsFromStorage
   } = useApp();
 
   const [searchTerm, setSearchTerm] = useState('');
@@ -18,6 +19,12 @@ export default function AdminUserManagement() {
   
   const [inspectUsername, setInspectUsername] = useState(null);
   const [userStats, setUserStats] = useState({});
+
+  useEffect(() => {
+    if (loadAccountsFromStorage) {
+      loadAccountsFromStorage();
+    }
+  }, [loadAccountsFromStorage]);
 
   useEffect(() => {
     async function loadStats() {

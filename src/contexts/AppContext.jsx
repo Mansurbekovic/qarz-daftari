@@ -67,6 +67,59 @@ export function AppProvider({ children }) {
         accs = Array.isArray(parsed) ? parsed : [];
       }
 
+      // 1. Auto-discover users from all localStorage keys starting with qd-db::
+      if (typeof window !== 'undefined' && window.localStorage) {
+        for (let i = 0; i < window.localStorage.length; i++) {
+          const k = window.localStorage.key(i);
+          if (k && k.includes('qd-db::')) {
+            const username = k.split('qd-db::')[1];
+            if (username && !accs.some(a => a.username === username)) {
+              try {
+                const dbStr = window.localStorage.getItem(k);
+                const parsed = JSON.parse(dbStr);
+                accs.push({
+                  username,
+                  businessName: parsed.businessName || username,
+                  role: username === 'admin' ? 'admin' : 'user',
+                  status: 'active',
+                  createdAt: new Date().toISOString()
+                });
+              } catch (e) {
+                accs.push({
+                  username,
+                  businessName: username,
+                  role: username === 'admin' ? 'admin' : 'user',
+                  status: 'active',
+                  createdAt: new Date().toISOString()
+                });
+              }
+            }
+          }
+        }
+      }
+
+      // 2. Auto-discover users from Flask Backend API if available
+      try {
+        const backendRes = await fetch('http://127.0.0.1:5000/api/users');
+        if (backendRes.ok) {
+          const backendUsers = await backendRes.json();
+          if (Array.isArray(backendUsers)) {
+            for (const u of backendUsers) {
+              const uname = u.username || u.name;
+              if (uname && !accs.some(a => a.username === uname)) {
+                accs.push({
+                  username: uname,
+                  businessName: u.businessName || u.name || uname,
+                  role: u.role || (uname === 'admin' ? 'admin' : 'user'),
+                  status: u.status || 'active',
+                  createdAt: u.createdAt || new Date().toISOString()
+                });
+              }
+            }
+          }
+        }
+      } catch (e) { /* backend offline, continue */ }
+
       // Ensure super admin exists
       if (!accs.some(a => a.username === 'admin')) {
         const adminHash = await sha256('admin123');
@@ -79,7 +132,6 @@ export function AppProvider({ children }) {
           createdAt: new Date().toISOString()
         };
         accs = [adminAcc, ...accs];
-        await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
       }
 
       // Normalize user records so admin table always shows all known accounts
@@ -87,11 +139,12 @@ export function AppProvider({ children }) {
         ...account,
         username: account.username || account.id || 'unknown',
         businessName: account.businessName || account.name || '—',
-        role: account.role || 'user',
+        role: account.role || (account.username === 'admin' ? 'admin' : 'user'),
         status: account.status || 'active',
         createdAt: account.createdAt || new Date().toISOString(),
       }));
 
+      await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
       setAccounts(accs);
       return accs;
     } catch (e) {
@@ -757,7 +810,7 @@ export function AppProvider({ children }) {
     updateDB,
     // Admin functions
     adminBlockUser, adminUnblockUser, adminResetUserPassword, adminResetUserPin,
-    adminDeleteUser,
+    adminDeleteUser, loadAccountsFromStorage,
     toggleSystemLockdown, toggleMaintenance, updateSystemConfigValues, addSecurityLog,
     // Notifications
     notifications, addNotification, markAllNotificationsRead,
@@ -765,3 +818,4 @@ export function AppProvider({ children }) {
 
   return <AppContext.Provider value={value}>{children}</AppContext.Provider>;
 }
+
