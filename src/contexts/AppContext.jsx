@@ -442,22 +442,44 @@ export function AppProvider({ children }) {
     if (accounts.some(a => a.username === username)) throw new Error('Bu foydalanuvchi nomi band.');
     
     const passHash = await sha256(password);
-    const newAccounts = [...accounts, {
+    const newAccount = {
       username,
       businessName: bizName,
       passHash,
       role: 'user',
       status: 'active',
       createdAt: new Date().toISOString()
-    }];
+    };
+    const newAccounts = [...accounts, newAccount];
     setAccounts(newAccounts);
     await saveAccountsToStorage(newAccounts);
+    
+    // Immediately register user on backend for cross-device visibility
+    try {
+      await fetch(`${getApiBase()}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAccount)
+      });
+    } catch (e) { /* backend offline */ }
     
     const data = defaultDB();
     data.businessName = bizName;
     setCurrentUser(username);
     setDb(data);
-    await saveDBToStorage(data, username);
+
+    // Save DB immediately (no debounce) to ensure data persists
+    try {
+      await storage.set(dbKeyFor(username), JSON.stringify(data), false);
+      try {
+        await fetch(`${getApiBase()}/api/users/${username}/db`, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(data)
+        });
+      } catch (e) { /* ignore */ }
+    } catch (e) { /* ignore */ }
+
     await saveSessionToStorage(username);
 
     addSecurityLog('REGISTER_SUCCESS', username, 'Yangi hisob yaratildi', 'info');
@@ -465,7 +487,7 @@ export function AppProvider({ children }) {
     toast('Hisob yaratildi. Endi PIN-kod o\'rnating.');
     setAuthState('pin');
     setPinMode('setup1');
-  }, [accounts, systemConfig, saveAccountsToStorage, saveDBToStorage, saveSessionToStorage, toast, addSecurityLog]);
+  }, [accounts, systemConfig, saveAccountsToStorage, saveSessionToStorage, toast, addSecurityLog]);
 
   const logout = useCallback(async () => {
     if (currentUser) {
