@@ -58,3 +58,67 @@
 .pw-eye svg{width:16px; height:16px;}
 .strength-bar{height:4px; border-radius:3px; background:var(--border); overflow:hidden; margin-top:2px;}
 .strength-bar i{display:block; height:100%; width:0%; background:var(--rust); transition:.2s;}
+
+/* Auth Pitch & Grid Layout */
+.auth-container-grid {
+  display: grid;
+  grid-template-columns: 1.15fr 0.85fr;
+  gap: 32px;
+  max-width: 960px;
+  width: 100%;
+  align-items: center;
+}
+
+.auth-pitch-card {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 36px;
+  box-shadow: 0 30px 60px -20px rgba(0,0,0,.35);
+  border: 1px solid var(--border);
+}
+
+.pitch-features-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 14px;
+}
+
+.pitch-feat-item {
+  display: flex;
+  gap: 10px;
+  align-items: flex-start;
+  background: var(--surface-2);
+  padding: 12px;
+  border-radius: 12px;
+  border: 1px solid var(--border);
+}
+
+.pitch-feat-item .feat-icon {
+  font-size: 20px;
+  flex-shrink: 0;
+}
+
+.pitch-feat-item b {
+  font-size: 13px;
+  display: block;
+  margin-bottom: 2px;
+  color: var(--ink);
+}
+
+.pitch-feat-item p {
+  font-size: 11.5px;
+  color: var(--muted);
+  line-height: 1.4;
+  margin: 0;
+}
+
+@media (max-width: 820px) {
+  .auth-container-grid {
+    grid-template-columns: 1fr;
+    max-width: 440px;
+  }
+  .pitch-features-grid {
+    grid-template-columns: 1fr;
+  }
+}
+

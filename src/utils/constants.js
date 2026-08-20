@@ -1,8 +1,9 @@
-export const APP_VERSION = 'v1.2';
+export const APP_VERSION = 'v1.2 Pro';
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Bosh sahifa', icon: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>' },
   { id: 'clients', label: 'Mijozlar', icon: '<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15.5 14.2c2.7.4 4.6 2.4 4.6 5.3"/>' },
+  { id: 'kassa', label: 'Kassa & Savdo', icon: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>' },
   { id: 'transactions', label: 'Tranzaksiyalar', icon: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>' },
   { id: 'wallet', label: 'Kartalar', icon: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><circle cx="16.5" cy="14.2" r="1.2" fill="currentColor" stroke="none"/>' },
   { id: 'stats', label: 'Statistika', icon: '<path d="M4 20V10M11 20V4M18 20v-7"/>' },
@@ -48,12 +49,17 @@ export const PAYMENT_PROVIDERS = {
   paynet: { name: 'Paynet', color: '#ED1C24', icon: '🔴', url: 'https://paynet.uz' },
 };
 
+export const MEASURE_UNITS = ['dona', 'kg', 'litr', 'metr', 'quti', 'pachka', 'blok', 'm²'];
+
+export const CLIENT_CATEGORIES = ['Oddiy', 'Doimiy', 'Ulgurji (Optom)', 'VIP', 'Qarindosh/Tanish', 'Ishonchli', 'Muammoli'];
+
 export const PAGE_TITLES = {
   dashboard: 'Bosh sahifa',
   clients: 'Mijozlar',
+  kassa: 'Kassa & Savdo Jurnali',
   transactions: 'Barcha tranzaksiyalar',
   wallet: 'Kartalarim',
-  stats: 'Statistika',
+  stats: 'Statistika & Tahlil',
   settings: 'Sozlamalar',
   clientDetail: 'Mijoz kartasi',
   admin: 'Admin Panel — Tizim Nazorati',
@@ -70,16 +76,20 @@ export function defaultDB() {
   return {
     pinHash: null,
     businessName: 'Mening biznesim',
+    phone: '',
+    address: '',
     theme: 'light',
     accent: 'gold',
     autoLockMinutes: 5,
     currency: "so'm",
+    exchangeRate: 12850,
     notifications: true,
     ageConfirmed: false,
     clients: [],
     transactions: [],
     cards: [],
     cardTx: [],
+    kassaEntries: [],
   };
 }
 
@@ -93,3 +103,4 @@ export function defaultSystemConfig() {
     blockSuspiciousIps: true,
   };
 }
+

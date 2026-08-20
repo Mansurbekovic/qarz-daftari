@@ -163,6 +163,109 @@ export function sanitizeInput(text) {
   }[c]));
 }
 
+// Generate Receipt Number
+export function generateReceiptNumber() {
+  const d = new Date();
+  const dateStr = d.getFullYear().toString().slice(-2) + String(d.getMonth() + 1).padStart(2, '0') + String(d.getDate()).padStart(2, '0');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `QD-${dateStr}-${rand}`;
+}
+
+// Generate Installment Plan
+export function generateInstallmentPlan(totalAmount, months = 3, startDateStr = todayISO()) {
+  const numMonths = Math.max(1, Math.min(24, parseInt(months, 10) || 1));
+  const baseAmount = Math.floor(totalAmount / numMonths);
+  const remainder = totalAmount - (baseAmount * numMonths);
+  const start = new Date(startDateStr || todayISO());
+  
+  const installments = [];
+  for (let i = 1; i <= numMonths; i++) {
+    const d = new Date(start);
+    d.setMonth(d.getMonth() + i);
+    const instAmount = i === numMonths ? baseAmount + remainder : baseAmount;
+    installments.push({
+      id: uid(),
+      month: i,
+      dueDate: d.toISOString().slice(0, 10),
+      amount: instAmount,
+      paid: false,
+      paidDate: null,
+    });
+  }
+  return installments;
+}
+
+// Calculate Client Trust / Reliability Score
+export function calculateClientScore(client, txs = []) {
+  if (!client) return { stars: 5, label: 'Yangi mijoz', color: 'teal' };
+  const clientTxs = txs.filter(t => t.clientId === client.id);
+  if (clientTxs.length === 0) return { stars: 5, label: 'Yangi mijoz', color: 'teal' };
+
+  const debts = clientTxs.filter(t => t.type === 'debt');
+  const payments = clientTxs.filter(t => t.type === 'payment');
+  const totalDebt = debts.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const totalPaid = payments.reduce((s, t) => s + Number(t.amount || 0), 0);
+  const today = todayISO();
+  const overdueTxs = debts.filter(t => t.dueDate && t.dueDate < today && (totalDebt - totalPaid) > 0);
+
+  if (overdueTxs.length > 2) {
+    return { stars: 1, label: 'Xavfli / Ko\'p kechiktiruvchi', color: 'rust' };
+  }
+  if (overdueTxs.length === 1) {
+    return { stars: 3, label: 'O\'rtacha ishonch', color: 'gold' };
+  }
+  if (totalPaid >= totalDebt * 0.7 && debts.length >= 2) {
+    return { stars: 5, label: 'A\'lo / Doimiy ishonchli', color: 'teal' };
+  }
+  return { stars: 4, label: 'Yaxshi mijoz', color: 'teal' };
+}
+
+// Advanced Telegram Chek Link
+export function telegramReceiptLink(clientName, amount, currency, items = [], totalBalance, businessName = 'Qarz Daftari', cardNum = '') {
+  let text = `🧾 *XARID VA NASIYA CHEKI*\n🏢 *${businessName}*\n👤 Mijoz: *${clientName}*\n📅 Sana: ${todayISO()}\n\n`;
+  if (items && items.length > 0) {
+    text += `📦 *Mahsulotlar:*\n`;
+    items.forEach((it, idx) => {
+      text += `${idx + 1}. ${it.name} — ${it.qty} ${it.unit || 'dona'} x ${fmtMoney(it.price, currency)} = ${fmtMoney(it.total, currency)}\n`;
+    });
+    text += `\n`;
+  }
+  text += `💵 *Ushbu summa:* ${fmtMoney(amount, currency)}\n`;
+  if (totalBalance !== undefined) {
+    text += `📊 *Jami qarz balansingiz:* ${fmtMoney(totalBalance, currency)}\n`;
+  }
+  if (cardNum) {
+    text += `💳 *To'lov uchun karta:* \`${cardNum}\`\n`;
+  }
+  text += `\n_Qarz Daftari orqali yuritiladi._`;
+  return `https://t.me/share/url?url=${encodeURIComponent(businessName)}&text=${encodeURIComponent(text)}`;
+}
+
+// WhatsApp Reminder Link
+export function whatsappReminderLink(phone, clientName, amount, currency, businessName = 'Qarz Daftari') {
+  const cleanPhone = (phone || '').replace(/\D/g, '');
+  const text = `Assalomu alaykum ${clientName}! ${businessName} hisob-kitob tizimidan: Sizda ${fmtMoney(amount, currency)} miqdorida qarz mavjud. Iltimos, to'lovni amalga oshiring.`;
+  return `https://wa.me/${cleanPhone}?text=${encodeURIComponent(text)}`;
+}
+
+// Export to CSV / Excel
+export function exportToCSV(headers, rows, fileName = 'qarz-daftari-export.csv') {
+  let csvContent = '\uFEFF'; // UTF-8 BOM for Excel Cyrillic/Uzbek support
+  csvContent += headers.map(h => `"${String(h).replace(/"/g, '""')}"`).join(',') + '\n';
+  rows.forEach(row => {
+    csvContent += row.map(cell => `"${String(cell ?? '').replace(/"/g, '""')}"`).join(',') + '\n';
+  });
+  const blob = new Blob([csvContent], { type: 'text/csv;charset=utf-8;' });
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement('a');
+  link.href = url;
+  link.setAttribute('download', fileName);
+  document.body.appendChild(link);
+  link.click();
+  document.body.removeChild(link);
+  URL.revokeObjectURL(url);
+}
+
 // Get dynamic API base URL for multi-device network access
 export function getApiBase() {
   if (typeof window !== 'undefined' && window.location) {
@@ -172,4 +275,5 @@ export function getApiBase() {
   }
   return 'http://127.0.0.1:5000';
 }
+
 
