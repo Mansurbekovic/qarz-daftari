@@ -285,6 +285,9 @@ export async function fetchWithTimeout(url, options = {}, timeoutMs = 2500) {
 
 // Get dynamic API base URL for multi-device network access and cloud deployments
 export function getApiBase() {
+  if (typeof import.meta !== 'undefined' && import.meta.env && import.meta.env.VITE_API_URL) {
+    return import.meta.env.VITE_API_URL;
+  }
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname || '127.0.0.1';
     // Localhost or local network IP (192.168.x.x, 10.x.x.x, 127.0.0.1, 172.x)
