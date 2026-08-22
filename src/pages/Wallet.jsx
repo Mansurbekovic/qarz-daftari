@@ -3,11 +3,9 @@ import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import {
   fmtMoney, fmtDate, maskCardNumber, parseMoneyValue,
-  validateCardLuhn, detectCardBank, formatCardInput, formatExpiryInput, validateExpiry
+  validateCardLuhn, detectCardBank, formatCardInput, formatExpiryInput, validateExpiry, getApiBase
 } from '../utils/helpers';
 import { BANK_PRESETS, CARD_TYPES, PAYMENT_PROVIDERS } from '../utils/constants';
-
-const API_BASE = 'http://127.0.0.1:5000';
 
 export default function Wallet() {
   const {
@@ -170,7 +168,7 @@ export default function Wallet() {
     }
 
     try {
-      await fetch(`${API_BASE}/api/payments/${selectedProvider}`, {
+      await fetch(`${getApiBase()}/api/payments/${selectedProvider}`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ amount, account: { phone: payPhone, cardId: payCardId } }),
@@ -275,7 +273,7 @@ export default function Wallet() {
     }
 
     try {
-      const response = await fetch(`${API_BASE}/api/payments/intent`, {
+      const response = await fetch(`${getApiBase()}/api/payments/intent`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
@@ -291,7 +289,7 @@ export default function Wallet() {
       try { result = await response.json(); } catch { result = {}; }
 
       if (response.ok && result.id) {
-        await fetch(`${API_BASE}/api/payments/confirm`, {
+        await fetch(`${getApiBase()}/api/payments/confirm`, {
           method: 'POST',
           headers: { 'Content-Type': 'application/json' },
           body: JSON.stringify({ intentId: result.id }),

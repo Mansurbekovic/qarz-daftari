@@ -5,11 +5,13 @@ import { fmtMoney, fmtDate, initials } from '../utils/helpers';
 export default function Transactions() {
   const { db, searchQuery, navigate } = useApp();
 
-  let txs = [...db.transactions].sort((a, b) => new Date(b.date) - new Date(a.date));
+  if (!db) return null;
+
+  let txs = [...(db.transactions || [])].sort((a, b) => new Date(b.date) - new Date(a.date));
   if (searchQuery) {
     const q = searchQuery.toLowerCase();
     txs = txs.filter(tx => {
-      const c = db.clients.find(cl => cl.id === tx.clientId);
+      const c = (db.clients || []).find(cl => cl.id === tx.clientId);
       return (c && c.name.toLowerCase().includes(q)) || (tx.note || '').toLowerCase().includes(q);
     });
   }

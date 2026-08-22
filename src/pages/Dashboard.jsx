@@ -4,9 +4,12 @@ import { fmtMoney, fmtDate, initials } from '../utils/helpers';
 
 export default function Dashboard({ onOpenAddClient }) {
   const { db, totals, totalCardBalance, navigate, clientBalance, clientIsOverdue } = useApp();
+
+  if (!db) return null;
+
   const t = totals();
-  const recent = [...db.transactions].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
-  const overdueClients = db.clients.filter(c => clientIsOverdue(c.id));
+  const recent = [...(db.transactions || [])].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
+  const overdueClients = (db.clients || []).filter(c => clientIsOverdue(c.id));
 
   // Currency converter state
   const [usdRate] = useState(12850); // 1 USD = 12 850 UZS

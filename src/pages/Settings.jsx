@@ -11,7 +11,11 @@ export default function Settings({ onLogoutClick }) {
   } = useApp();
   const toast = useToast();
 
-  const [bizNameInput, setBizNameInput] = useState(db.businessName);
+  if (!db) return null;
+
+  const [bizNameInput, setBizNameInput] = useState(db.businessName || '');
+  const [bizPhoneInput, setBizPhoneInput] = useState(db.phone || '');
+  const [bizAddressInput, setBizAddressInput] = useState(db.address || '');
   const [currencySelect, setCurrencySelect] = useState(db.currency || "so'm");
 
   // Change PIN modal state
@@ -35,8 +39,13 @@ export default function Settings({ onLogoutClick }) {
 
   const handleSaveBizName = () => {
     const name = bizNameInput.trim() || 'Mening biznesim';
-    updateSettings({ businessName: name, currency: currencySelect });
-    toast('Saqlandi');
+    updateSettings({
+      businessName: name,
+      phone: bizPhoneInput.trim(),
+      address: bizAddressInput.trim(),
+      currency: currencySelect
+    });
+    toast('Biznes ma\'lumotlari saqlandi');
   };
 
   const handleAutoLockChange = (e) => {
@@ -132,12 +141,32 @@ export default function Settings({ onLogoutClick }) {
       <div className="settings-card">
         <div className="section-title" style={{ marginTop: 0 }}>Biznes ma'lumotlari</div>
         <div className="form-field">
-          <label>Biznes nomi</label>
+          <label>Biznes / Do'kon nomi</label>
           <input
             type="text"
             value={bizNameInput}
             onChange={e => setBizNameInput(e.target.value)}
           />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+          <div className="form-field">
+            <label>Biznes telefon raqami (Chekda ko'rinadi)</label>
+            <input
+              type="text"
+              placeholder="+998 90 123 45 67"
+              value={bizPhoneInput}
+              onChange={e => setBizPhoneInput(e.target.value)}
+            />
+          </div>
+          <div className="form-field">
+            <label>Manzil (Chekda ko'rinadi)</label>
+            <input
+              type="text"
+              placeholder="Masalan: Toshkent, Chilonzor"
+              value={bizAddressInput}
+              onChange={e => setBizAddressInput(e.target.value)}
+            />
+          </div>
         </div>
         <div className="form-field">
           <label>Valyuta belgisi</label>

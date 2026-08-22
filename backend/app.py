@@ -6,21 +6,68 @@ import uuid
 from datetime import datetime
 
 app = Flask(__name__)
-CORS(app)
+CORS(app, resources={r"/*": {"origins": "*"}})
 
 DATA_FILE = os.path.join(os.path.dirname(__file__), 'data.json')
 
 
+def default_backend_data():
+    return {
+        "users": [
+            {
+                "id": "1",
+                "username": "admin",
+                "businessName": "Tizim Administratori",
+                "passHash": "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec",
+                "role": "admin",
+                "status": "active",
+                "createdAt": datetime.utcnow().isoformat(),
+            }
+        ],
+        "clients": [],
+        "transactions": [],
+        "cards": [],
+        "user_dbs": {},
+        "payments": [],
+    }
+
+
 def load_data():
     if not os.path.exists(DATA_FILE):
-        return {"users": [], "clients": [], "transactions": [], "cards": []}
-    with open(DATA_FILE, 'r', encoding='utf-8') as f:
-        return json.load(f)
+        data = default_backend_data()
+        save_data(data)
+        return data
+    try:
+        with open(DATA_FILE, 'r', encoding='utf-8') as f:
+            content = f.read().strip()
+            if not content:
+                return default_backend_data()
+            data = json.loads(content)
+            if not isinstance(data, dict):
+                return default_backend_data()
+            data.setdefault("users", [])
+            data.setdefault("clients", [])
+            data.setdefault("transactions", [])
+            data.setdefault("cards", [])
+            data.setdefault("user_dbs", {})
+            data.setdefault("payments", [])
+            return data
+    except Exception:
+        return default_backend_data()
 
 
 def save_data(data):
-    with open(DATA_FILE, 'w', encoding='utf-8') as f:
-        json.dump(data, f, ensure_ascii=False, indent=2)
+    try:
+        os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
+        temp_file = DATA_FILE + '.tmp'
+        with open(temp_file, 'w', encoding='utf-8') as f:
+            json.dump(data, f, ensure_ascii=False, indent=2)
+        if os.path.exists(DATA_FILE):
+            os.replace(temp_file, DATA_FILE)
+        else:
+            os.rename(temp_file, DATA_FILE)
+    except Exception as e:
+        print(f"Error saving data: {e}")
 
 
 def create_payment_intent(amount, currency='UZS', card_token=None):
@@ -47,7 +94,7 @@ def get_users():
 
 @app.post('/api/users')
 def create_user():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     username = payload.get("username")
     if not username:
@@ -78,15 +125,50 @@ def create_user():
     return jsonify(user), 201
 
 
+@app.put('/api/users/<username>')
+def update_user(username):
+    payload = request.get_json(silent=True) or {}
+    data = load_data()
+    user = next((u for u in data.get("users", []) if u.get("username") == username), None)
+    if not user:
+        return jsonify({"error": "user_not_found"}), 404
+
+    if "businessName" in payload:
+        user["businessName"] = payload["businessName"]
+    if "status" in payload:
+        user["status"] = payload["status"]
+    if "role" in payload:
+        user["role"] = payload["role"]
+    if "passHash" in payload:
+        user["passHash"] = payload["passHash"]
+
+    save_data(data)
+    return jsonify(user)
+
+
+@app.delete('/api/users/<username>')
+def delete_user(username):
+    if username == 'admin':
+        return jsonify({"error": "cannot_delete_admin"}), 400
+
+    data = load_data()
+    data["users"] = [u for u in data.get("users", []) if u.get("username") != username]
+    if "user_dbs" in data and username in data["user_dbs"]:
+        del data["user_dbs"][username]
+
+    save_data(data)
+    return jsonify({"status": "deleted", "username": username})
+
+
 @app.post('/api/users/sync')
 def sync_users():
-    payload = request.json or []
+    payload = request.get_json(silent=True) or []
     if not isinstance(payload, list):
         return jsonify({"error": "invalid_payload"}), 400
-    
+
     data = load_data()
     current_users = data.get("users", [])
-    
+
     for u in payload:
         uname = u.get("username")
         if not uname:
@@ -124,12 +206,11 @@ def get_user_db(username):
 
 @app.post('/api/users/<username>/db')
 def save_user_db(username):
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     data.setdefault("user_dbs", {})[username] = payload
     save_data(data)
     return jsonify({"status": "saved", "username": username})
-
 
 
 @app.get('/api/clients')
@@ -140,7 +221,7 @@ def get_clients():
 
 @app.post('/api/clients')
 def create_client():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     client = {
         "id": str(len(data["clients"]) + 1),
@@ -161,7 +242,7 @@ def get_transactions():
 
 @app.post('/api/transactions')
 def create_transaction():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     tx = {
         "id": str(len(data["transactions"]) + 1),
@@ -185,7 +266,7 @@ def get_cards():
 
 @app.post('/api/cards')
 def create_card():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     card = {
         "id": str(len(data["cards"]) + 1),
@@ -203,7 +284,7 @@ def create_card():
 
 @app.post('/api/payments/intent')
 def create_payment_intent_endpoint():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     amount = payload.get('amount', 0)
     card_token = payload.get('cardToken')
     provider = payload.get('provider', 'card')
@@ -218,7 +299,7 @@ def create_payment_intent_endpoint():
 
 @app.post('/api/payments/confirm')
 def confirm_payment():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     data = load_data()
     intent_id = payload.get('intentId')
     payment = None
@@ -238,7 +319,7 @@ def confirm_payment():
 
 @app.post('/api/payments/payme')
 def payme_callback():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     amount = payload.get('amount', 0)
     account = payload.get('account', {})
     tx_id = f"payme_{uuid.uuid4().hex[:10]}"
@@ -256,7 +337,7 @@ def payme_callback():
 
 @app.post('/api/payments/click')
 def click_callback():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     click_trans_id = payload.get('click_trans_id') or uuid.uuid4().hex[:8]
     amount = payload.get('amount', 0)
     return jsonify({
@@ -270,7 +351,7 @@ def click_callback():
 
 @app.post('/api/payments/paynet')
 def paynet_callback():
-    payload = request.json or {}
+    payload = request.get_json(silent=True) or {}
     amount = payload.get('amount', 0)
     return jsonify({
         "status": "OK",
@@ -302,4 +383,3 @@ if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
     app.run(host='0.0.0.0', port=port, debug=debug)
-

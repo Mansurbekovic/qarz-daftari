@@ -401,7 +401,13 @@ export function AppProvider({ children }) {
       throw new Error('Tizim administrator tomonidan vaqtincha favqulodda qulflangan.');
     }
 
-    const acc = accounts.find(a => a.username === username);
+    let acc = accounts.find(a => a.username === username);
+    if (!acc) {
+      // Reload accounts from backend/storage to discover users created on other devices
+      const freshAccounts = await loadAccountsFromStorage();
+      acc = freshAccounts.find(a => a.username === username);
+    }
+
     if (!acc) {
       addSecurityLog('FAILED_LOGIN', username, 'Topilmagan nom bilan kirishga urinish', 'warning');
       throw new Error('Bunday foydalanuvchi topilmadi.');
@@ -433,7 +439,7 @@ export function AppProvider({ children }) {
       setAuthState('pin');
       setPinMode('enter');
     }
-  }, [accounts, systemConfig, loadDBFromStorage, saveSessionToStorage, applyTheme, applyAccent, addSecurityLog]);
+  }, [accounts, systemConfig, loadAccountsFromStorage, loadDBFromStorage, saveSessionToStorage, applyTheme, applyAccent, addSecurityLog]);
 
   const register = useCallback(async (bizName, username, password) => {
     if (systemConfig.lockdown) {
@@ -812,6 +818,10 @@ export function AppProvider({ children }) {
       return;
     }
     try { await storage.delete(dbKeyFor(targetUsername), false); } catch (e) { /* ignore */ }
+    try {
+      await fetch(`${getApiBase()}/api/users/${targetUsername}`, { method: 'DELETE' });
+    } catch (e) { /* ignore backend offline */ }
+
     const updated = accounts.filter(a => a.username !== targetUsername);
     setAccounts(updated);
     await saveAccountsToStorage(updated);

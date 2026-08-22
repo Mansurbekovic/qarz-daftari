@@ -5,6 +5,8 @@ import { fmtMoney, initials } from '../utils/helpers';
 export default function Stats() {
   const { db, totals, clientBalance, navigate } = useApp();
 
+  if (!db) return null;
+
   const months = [];
   const now = new Date();
   for (let i = 5; i >= 0; i--) {
