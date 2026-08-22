@@ -38,7 +38,37 @@ export default function App() {
   const [showLogoutModal, setShowLogoutModal] = useState(false);
 
   if (!initialized || authState === 'loading') {
-    return null;
+    return (
+      <div style={{
+        minHeight: '100vh',
+        display: 'flex',
+        flexDirection: 'column',
+        alignItems: 'center',
+        justifyContent: 'center',
+        background: '#0E2419',
+        color: '#ffffff',
+        fontFamily: 'system-ui, -apple-system, sans-serif',
+      }}>
+        <div style={{
+          width: '56px',
+          height: '56px',
+          borderRadius: '14px',
+          background: 'linear-gradient(145deg, #A9821F, #7a5f16)',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'center',
+          color: '#fff',
+          fontWeight: 800,
+          fontSize: '22px',
+          marginBottom: '16px',
+          boxShadow: '0 10px 25px rgba(0,0,0,0.35)'
+        }}>
+          QD
+        </div>
+        <div style={{ fontSize: '19px', fontWeight: 800, letterSpacing: '0.04em' }}>Qarz Daftari</div>
+        <div style={{ fontSize: '12px', opacity: 0.75, marginTop: '8px' }}>Xavfsiz hisob-kitob tizimi yuklanmoqda...</div>
+      </div>
+    );
   }
 
   if (authState === 'auth') {

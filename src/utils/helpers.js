@@ -266,14 +266,43 @@ export function exportToCSV(headers, rows, fileName = 'qarz-daftari-export.csv')
   URL.revokeObjectURL(url);
 }
 
-// Get dynamic API base URL for multi-device network access
+// Safe fetch with strict timeout to prevent app hanging
+export async function fetchWithTimeout(url, options = {}, timeoutMs = 2500) {
+  if (typeof AbortController === 'undefined') {
+    return fetch(url, options);
+  }
+  const controller = new AbortController();
+  const timeoutId = setTimeout(() => controller.abort(), timeoutMs);
+  try {
+    const response = await fetch(url, { ...options, signal: controller.signal });
+    clearTimeout(timeoutId);
+    return response;
+  } catch (err) {
+    clearTimeout(timeoutId);
+    throw err;
+  }
+}
+
+// Get dynamic API base URL for multi-device network access and cloud deployments
 export function getApiBase() {
   if (typeof window !== 'undefined' && window.location) {
     const host = window.location.hostname || '127.0.0.1';
-    const protocol = window.location.protocol || 'http:';
-    return `${protocol}//${host}:5000`;
+    // Localhost or local network IP (192.168.x.x, 10.x.x.x, 127.0.0.1, 172.x)
+    if (
+      host === 'localhost' ||
+      host === '127.0.0.1' ||
+      host.startsWith('192.168.') ||
+      host.startsWith('10.') ||
+      host.startsWith('172.')
+    ) {
+      const protocol = window.location.protocol || 'http:';
+      return `${protocol}//${host}:5000`;
+    }
+    // Production cloud deployment (Render backend)
+    return 'https://qarz-daftari.onrender.com';
   }
   return 'http://127.0.0.1:5000';
 }
+
 
 
