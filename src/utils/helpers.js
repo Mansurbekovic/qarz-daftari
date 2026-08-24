@@ -307,5 +307,110 @@ export function getApiBase() {
   return 'http://127.0.0.1:5000';
 }
 
+// Web Audio API Beep feedback for barcode and actions
+export function playBeep(type = 'success') {
+  try {
+    const AudioCtx = window.AudioContext || window.webkitAudioContext;
+    if (!AudioCtx) return;
+    const ctx = new AudioCtx();
+    const osc = ctx.createOscillator();
+    const gain = ctx.createGain();
+    osc.connect(gain);
+    gain.connect(ctx.destination);
 
+    if (type === 'success') {
+      osc.frequency.setValueAtTime(880, ctx.currentTime); // A5 note
+      osc.frequency.exponentialRampToValueAtTime(1760, ctx.currentTime + 0.12);
+      gain.gain.setValueAtTime(0.15, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.12);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.12);
+    } else {
+      osc.frequency.setValueAtTime(300, ctx.currentTime);
+      osc.frequency.linearRampToValueAtTime(150, ctx.currentTime + 0.2);
+      gain.gain.setValueAtTime(0.2, ctx.currentTime);
+      gain.gain.exponentialRampToValueAtTime(0.01, ctx.currentTime + 0.2);
+      osc.start();
+      osc.stop(ctx.currentTime + 0.2);
+    }
+  } catch (e) {
+    // AudioContext blocked by browser policy until interaction
+  }
+}
 
+// Generate Contract / Promissory Note Number
+export function generateContractNumber() {
+  const dateStr = new Date().toISOString().slice(0, 10).replace(/-/g, '');
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `SH-${dateStr}-${rand}`;
+}
+
+// Format Passport / ID (e.g. AA 1234567 or AB1234567)
+export function formatPassport(val) {
+  if (!val) return '';
+  const cleaned = String(val).toUpperCase().replace(/[^A-Z0-9]/g, '');
+  if (cleaned.length > 2) {
+    return cleaned.slice(0, 2) + ' ' + cleaned.slice(2, 9);
+  }
+  return cleaned;
+}
+
+// Smart Speech-to-Debt Parser (Extracts name, amount, items from speech)
+export function parseVoiceDebt(text) {
+  if (!text) return { raw: '', amount: null, note: '', items: [] };
+
+  const raw = text.trim();
+  let note = raw;
+  let amount = null;
+  const items = [];
+
+  // Match numbers (e.g. 50 000, 50000, 50 ming, 50k)
+  const mingMatch = raw.match(/(\d+(?:[\s.,]\d+)?)\s*(?:ming|k)\b/i);
+  const mlnMatch = raw.match(/(\d+(?:[\s.,]\d+)?)\s*(?:million|mln|m)\b/i);
+  const plainNumMatch = raw.match(/(\d[\d\s.,]{3,})\s*(?:so['`]?m)?/i);
+
+  if (mingMatch) {
+    const n = parseFloat(mingMatch[1].replace(/[\s,]/g, ''));
+    if (!isNaN(n)) amount = n * 1000;
+  } else if (mlnMatch) {
+    const n = parseFloat(mlnMatch[1].replace(/[\s,]/g, ''));
+    if (!isNaN(n)) amount = n * 1000000;
+  } else if (plainNumMatch) {
+    const n = parseFloat(plainNumMatch[1].replace(/[\s,]/g, ''));
+    if (!isNaN(n) && n > 0) amount = n;
+  }
+
+  // Parse simple items like "2 ta yog", "5 kg un"
+  const itemRegex = /(\d+(?:[\s.,]\d+)?)\s*(ta|kg|litr|metr|dona|quti|blok|pachka)\s+([a-zA-Zа-яА-Яo'g'shch]+)/gi;
+  let match;
+  while ((match = itemRegex.exec(raw)) !== null) {
+    const qty = parseFloat(match[1].replace(/[\s,]/g, '')) || 1;
+    const unit = match[2].toLowerCase();
+    const name = match[3];
+    items.push({
+      id: uid(),
+      name: name.charAt(0).toUpperCase() + name.slice(1),
+      quantity: qty,
+      unit: unit === 'ta' ? 'dona' : unit,
+      price: 0,
+      subtotal: 0
+    });
+  }
+
+  return { raw, amount, note, items };
+}
+
+// Generate Click/Payme Direct Payment URI
+export function generatePaymentLink(provider, cardOrPhone, amount, comment = 'Qarz to\'lovi') {
+  if (provider === 'payme') {
+    // Payme P2P / merchant link
+    const cleanCard = String(cardOrPhone || '').replace(/\D/g, '');
+    const tiAmount = (amount || 0) * 100; // in tiyin
+    return `https://checkout.paycom.uz/${encodeURIComponent(cleanCard || '')}?a=${tiAmount}&c=${encodeURIComponent(comment)}`;
+  } else if (provider === 'click') {
+    // Click P2P link
+    const cleanNum = String(cardOrPhone || '').replace(/\D/g, '');
+    return `https://my.click.uz/services/p2p?card=${cleanNum}&amount=${amount || ''}&desc=${encodeURIComponent(comment)}`;
+  }
+  return `https://payme.uz`;
+}

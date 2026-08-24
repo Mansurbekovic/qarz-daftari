@@ -15,6 +15,7 @@ import Clients from './pages/Clients';
 import ClientDetail from './pages/ClientDetail';
 import Transactions from './pages/Transactions';
 import Kassa from './pages/Kassa';
+import Warehouse from './pages/Warehouse';
 import Wallet from './pages/Wallet';
 import Stats from './pages/Stats';
 import Settings from './pages/Settings';
@@ -115,6 +116,7 @@ export default function App() {
               onOpenEditClient={handleOpenEditClient}
             />
           )}
+          {currentPage === 'warehouse' && <Warehouse />}
           {currentPage === 'kassa' && <Kassa />}
           {currentPage === 'transactions' && <Transactions />}
           {currentPage === 'wallet' && <Wallet />}

@@ -3,10 +3,12 @@ import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import { fmtMoney, parseMoneyValue, todayISO, generateInstallmentPlan, generateReceiptNumber } from '../../utils/helpers';
 import { MEASURE_UNITS } from '../../utils/constants';
+import VoiceInput from '../common/VoiceInput';
+import BarcodeScanner from './BarcodeScanner';
 
 export default function TransactionModal({ clientId, defaultType = 'debt', onClose, onTransactionCreated }) {
   const { db, addTransaction, clientBalance } = useApp();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const c = db.clients.find(cl => cl.id === clientId);
   const iowe = c && c.relation === 'i_owe';
@@ -19,10 +21,11 @@ export default function TransactionModal({ clientId, defaultType = 'debt', onClo
   const [note, setNote] = useState('');
   const [cardId, setCardId] = useState('');
   const [paymentMethod, setPaymentMethod] = useState('cash'); // 'cash' | 'card' | 'online'
+  const [showScanner, setShowScanner] = useState(false);
 
   // Items List state
   const [items, setItems] = useState([
-    { id: 1, name: '', qty: 1, unit: 'dona', price: '', total: 0 }
+    { id: 1, name: '', qty: 1, unit: 'dona', price: '', total: 0, productId: null, barcode: '' }
   ]);
 
   // Installment (Rastrochka) state
@@ -33,6 +36,69 @@ export default function TransactionModal({ clientId, defaultType = 'debt', onClo
 
   const debtLabel = iowe ? 'Qarz oldim' : 'Nasiya / Qarz berdim';
   const paymentLabel = iowe ? 'Qarz qaytardim' : "To'lov qabul qildim";
+
+  // Voice AI Parser Handler
+  const handleVoiceResult = (parsed) => {
+    if (parsed.items && parsed.items.length > 0) {
+      setEntryMode('items');
+      const newItems = parsed.items.map(it => {
+        // match from warehouse
+        const prod = (db.products || []).find(p => p.name.toLowerCase().includes(it.name.toLowerCase()));
+        return {
+          id: Date.now() + Math.random(),
+          name: prod ? prod.name : it.name,
+          qty: it.quantity || 1,
+          unit: prod ? prod.unit : it.unit,
+          price: prod ? prod.price : '',
+          total: prod ? (prod.price * (it.quantity || 1)) : 0,
+          productId: prod ? prod.id : null,
+          barcode: prod ? prod.barcode : ''
+        };
+      });
+      setItems(newItems);
+      if (parsed.note) setNote(parsed.note);
+    } else {
+      if (parsed.amount) setAmount(parsed.amount);
+      if (parsed.note) setNote(parsed.note);
+    }
+  };
+
+  // Barcode Scanner Handler
+  const handleBarcodeScan = (code) => {
+    const prod = (db.products || []).find(p => p.barcode === code);
+    setEntryMode('items');
+    if (prod) {
+      setItems(prev => [
+        ...prev.filter(it => it.name.trim() !== ''),
+        {
+          id: Date.now(),
+          name: prod.name,
+          qty: 1,
+          unit: prod.unit || 'dona',
+          price: prod.price,
+          total: prod.price * 1,
+          productId: prod.id,
+          barcode: prod.barcode
+        }
+      ]);
+      toast(`Ombordan topildi: ${prod.name} (${fmtMoney(prod.price, db.currency)})`);
+    } else {
+      setItems(prev => [
+        ...prev.filter(it => it.name.trim() !== ''),
+        {
+          id: Date.now(),
+          name: `Shtrix-kod: ${code}`,
+          qty: 1,
+          unit: 'dona',
+          price: '',
+          total: 0,
+          productId: null,
+          barcode: code
+        }
+      ]);
+      toast(`Yangi shtrix-kod: ${code}. Narxini kiriting.`);
+    }
+  };
 
   // Item List Handlers
   const handleItemChange = (idx, field, val) => {
@@ -148,6 +214,14 @@ export default function TransactionModal({ clientId, defaultType = 'debt', onClo
         </div>
 
         <form className="modal-body" onSubmit={handleSave}>
+          {/* AI Voice Input Bar */}
+          <div style={{ marginBottom: '14px', display: 'flex', justifyContent: 'space-between', alignItems: 'center', background: 'var(--surface-2)', padding: '10px 14px', borderRadius: '12px', border: '1px solid var(--border)' }}>
+            <div style={{ fontSize: '12.5px', color: 'var(--text-sec)' }}>
+              🎙️ <b>Ovozli yozish:</b> "Akmal akaga 50 ming", "2 ta un 40000 dan"...
+            </div>
+            <VoiceInput onResult={handleVoiceResult} />
+          </div>
+
           <div className="type-toggle" style={{ marginBottom: '14px' }}>
             <button
               type="button"
@@ -190,9 +264,19 @@ export default function TransactionModal({ clientId, defaultType = 'debt', onClo
           {/* Items Entry Mode */}
           {entryMode === 'items' && selType === 'debt' && !iowe ? (
             <div style={{ marginBottom: '14px', background: 'var(--surface-2)', padding: '12px', borderRadius: '12px', border: '1px solid var(--border)' }}>
-              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
-                <b>📦 Mahsulotlar savati</b>
-                <span style={{ fontSize: '12px', color: 'var(--gold)', fontWeight: 800 }}>
+              <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px', flexWrap: 'wrap', gap: '8px' }}>
+                <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+                  <b>📦 Mahsulotlar savati</b>
+                  <button
+                    type="button"
+                    className="btn btn-outline btn-sm"
+                    style={{ fontSize: '11px', padding: '3px 8px' }}
+                    onClick={() => setShowScanner(true)}
+                  >
+                    📷 Shtrix-kod skanerlash
+                  </button>
+                </div>
+                <span style={{ fontSize: '13px', color: 'var(--gold)', fontWeight: 800 }}>
                   Jami: {fmtMoney(calculateItemsTotal(), db.currency)}
                 </span>
               </div>
@@ -372,6 +456,13 @@ export default function TransactionModal({ clientId, defaultType = 'debt', onClo
           </div>
         </form>
       </div>
+
+      {showScanner && (
+        <BarcodeScanner
+          onScan={handleBarcodeScan}
+          onClose={() => setShowScanner(false)}
+        />
+      )}
     </div>
   );
 }

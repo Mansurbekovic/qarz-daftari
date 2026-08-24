@@ -7,15 +7,19 @@ import {
   calculateClientScore, exportToCSV
 } from '../utils/helpers';
 import ReceiptModal from '../components/modals/ReceiptModal';
+import ContractModal from '../components/modals/ContractModal';
+import ShareModal from '../components/modals/ShareModal';
 
 export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
   const { db, currentClientId, navigate, clientBalance, clientTransactions, clientIsOverdue, deleteTransaction, deleteClient, updateDB } = useApp();
-  const toast = useToast();
+  const { toast } = useToast();
 
   const [txToDelete, setTxToDelete] = useState(null);
   const [showDelClientModal, setShowDelClientModal] = useState(false);
   const [selectedTxForReceipt, setSelectedTxForReceipt] = useState(null);
   const [expandedTxId, setExpandedTxId] = useState(null);
+  const [showContractModal, setShowContractModal] = useState(false);
+  const [showShareModal, setShowShareModal] = useState(false);
 
   const c = db.clients.find(item => item.id === currentClientId);
 
@@ -194,28 +198,24 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
       </div>
 
       {/* Action Buttons Toolbar */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap' }}>
+      <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap', alignItems: 'center' }}>
         <button className="btn btn-danger" onClick={() => onOpenTxModal(c.id, 'debt')}>
           {iowe ? "+ Qarz oldim" : "+ Nasiya / Qarz berish"}
         </button>
         <button className="btn btn-gold" onClick={() => onOpenTxModal(c.id, 'payment')}>
           {iowe ? "+ Qarz qaytarish" : "+ To'lov qabul qilish"}
         </button>
+
+        <button className="btn btn-outline" onClick={() => setShowContractModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>📑</span> Qarz Shartnomasi / Tilxat
+        </button>
+
         {!iowe && bal > 0 && (
-          <>
-            <button className="btn btn-teal" onClick={handleSendTelegramReminder}>
-              ✈️ Telegram Eslatma
-            </button>
-            {c.phone && (
-              <button className="btn btn-outline" onClick={handleSendWhatsappReminder}>
-                💬 WhatsApp
-              </button>
-            )}
-            <button className="btn btn-outline" onClick={handleCopySmsReminder}>
-              ✉️ SMS nusxa
-            </button>
-          </>
+          <button className="btn btn-teal" onClick={() => setShowShareModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+            <span>📲</span> Eslatma & To'lov Havolasi
+          </button>
         )}
+
         <button
           className="btn btn-outline"
           style={{ color: 'var(--rust)', borderColor: 'var(--rust-soft)', marginLeft: 'auto' }}
@@ -439,6 +439,24 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
             </div>
           </div>
         </div>
+      )}
+
+      {/* Contract Modal */}
+      {showContractModal && (
+        <ContractModal
+          client={c}
+          defaultAmount={bal > 0 ? bal : 0}
+          onClose={() => setShowContractModal(false)}
+        />
+      )}
+
+      {/* Share Modal */}
+      {showShareModal && (
+        <ShareModal
+          client={c}
+          balance={bal}
+          onClose={() => setShowShareModal(false)}
+        />
       )}
     </div>
   );

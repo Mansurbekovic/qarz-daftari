@@ -337,15 +337,16 @@
   margin-top: 6px;
 }
 
-/* Print Rules */
+/* Print Rules for Receipts and Contracts */
 @media print {
   body * {
     visibility: hidden;
   }
-  #printable-receipt, #printable-receipt * {
+  #printable-receipt, #printable-receipt *,
+  #printable-contract, #printable-contract * {
     visibility: visible;
   }
-  #printable-receipt {
+  #printable-receipt, #printable-contract {
     position: absolute;
     left: 0;
     top: 0;
@@ -354,10 +355,302 @@
     box-shadow: none !important;
     border: none !important;
     padding: 0 !important;
+    background: #fff !important;
+    color: #000 !important;
   }
   .no-print {
     display: none !important;
   }
 }
 
+/* ===== VOICE INPUT STYLES ===== */
+.voice-input-container {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  position: relative;
+}
 
+.btn-voice {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  color: var(--ink);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 12px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  position: relative;
+}
+
+.btn-voice:hover {
+  background: var(--surface-2);
+  border-color: var(--gold);
+}
+
+.btn-voice.recording {
+  background: #ff4757;
+  color: #ffffff;
+  border-color: #ff4757;
+  animation: pulse-border 1.5s infinite;
+}
+
+.btn-voice .pulse-ring {
+  position: absolute;
+  top: -4px;
+  left: -4px;
+  right: -4px;
+  bottom: -4px;
+  border: 2px solid #ff4757;
+  border-radius: 24px;
+  animation: ring-pulse 1.2s infinite;
+  pointer-events: none;
+}
+
+@keyframes ring-pulse {
+  0% { transform: scale(1); opacity: 1; }
+  100% { transform: scale(1.15); opacity: 0; }
+}
+
+.voice-transcript-bubble {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: var(--surface-2);
+  border: 1px solid var(--gold);
+  border-radius: 14px;
+  padding: 4px 10px;
+  font-size: 11.5px;
+}
+
+.btn-mini-apply {
+  background: var(--gold);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  padding: 2px 8px;
+  font-size: 11px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* ===== BARCODE SCANNER STYLES ===== */
+.scanner-viewfinder-container {
+  position: relative;
+  width: 100%;
+  height: 280px;
+  background: #000;
+  border-radius: 14px;
+  overflow: hidden;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.scanner-video {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+.scanner-overlay {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.4);
+}
+
+.scanner-frame {
+  position: relative;
+  width: 220px;
+  height: 140px;
+  border: 2px dashed rgba(255, 255, 255, 0.5);
+  border-radius: 12px;
+  overflow: hidden;
+}
+
+.scanner-laser {
+  position: absolute;
+  top: 0;
+  left: 0;
+  right: 0;
+  height: 3px;
+  background: #00ff88;
+  box-shadow: 0 0 12px #00ff88, 0 0 20px #00ff88;
+  animation: laser-scan 2s ease-in-out infinite alternate;
+}
+
+@keyframes laser-scan {
+  0% { top: 5%; }
+  100% { top: 90%; }
+}
+
+.scanner-frame .corner {
+  position: absolute;
+  width: 16px;
+  height: 16px;
+  border-color: #00ff88;
+  border-style: solid;
+}
+
+.scanner-frame .corner.top-left { top: 0; left: 0; border-width: 3px 0 0 3px; }
+.scanner-frame .corner.top-right { top: 0; right: 0; border-width: 3px 3px 0 0; }
+.scanner-frame .corner.bottom-left { bottom: 0; left: 0; border-width: 0 0 3px 3px; }
+.scanner-frame .corner.bottom-right { bottom: 0; right: 0; border-width: 0 3px 3px 0; }
+
+.scanner-instruction {
+  color: #ffffff;
+  font-size: 11.5px;
+  margin-top: 14px;
+  text-shadow: 0 1px 4px rgba(0,0,0,0.8);
+}
+
+.btn-torch {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  background: rgba(0, 0, 0, 0.6);
+  color: #fff;
+  border: 1px solid rgba(255,255,255,0.3);
+  padding: 6px 12px;
+  border-radius: 20px;
+  font-size: 11.5px;
+  cursor: pointer;
+}
+
+/* ===== CONTRACT / PROMISSORY NOTE PAPER ===== */
+.contract-paper {
+  background: #ffffff;
+  color: #111111;
+  padding: 36px 40px;
+  border-radius: 8px;
+  font-family: 'Times New Roman', Times, serif;
+  font-size: 14px;
+  line-height: 1.6;
+  border: 1px solid #ddd;
+  box-shadow: 0 6px 24px rgba(0,0,0,0.06);
+}
+
+.contract-header {
+  text-align: center;
+  margin-bottom: 20px;
+}
+
+.contract-title {
+  font-size: 18px;
+  font-weight: bold;
+  letter-spacing: 0.05em;
+}
+
+.contract-number {
+  font-size: 14px;
+  font-weight: 600;
+  margin-top: 4px;
+}
+
+.contract-subdate {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+  font-size: 13px;
+  font-style: italic;
+}
+
+.contract-divider {
+  border: none;
+  border-top: 2px solid #111;
+  margin: 14px 0 20px 0;
+}
+
+.contract-text {
+  text-indent: 24px;
+  margin-bottom: 12px;
+  text-align: justify;
+}
+
+.contract-inline-input {
+  border: none;
+  border-bottom: 1px dashed #333;
+  padding: 2px 4px;
+  font-family: inherit;
+  font-size: inherit;
+  color: #000;
+  background: #fdfae8;
+  border-radius: 2px;
+}
+
+.contract-clause {
+  margin-top: 18px;
+}
+
+.contract-clause h4 {
+  font-size: 14.5px;
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.contract-clause p {
+  text-indent: 24px;
+  margin-bottom: 8px;
+  text-align: justify;
+}
+
+.contract-signatures {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 40px;
+  padding-top: 20px;
+  border-top: 1px solid #ccc;
+}
+
+.signature-box {
+  width: 45%;
+}
+
+.sig-title {
+  font-weight: bold;
+  margin-bottom: 6px;
+}
+
+.sig-name {
+  font-size: 13.5px;
+  margin-bottom: 16px;
+}
+
+.sig-line {
+  font-size: 13px;
+  font-style: italic;
+}
+
+/* Category and Quick Adjust */
+.category-tag {
+  display: inline-block;
+  background: var(--surface-2);
+  color: var(--text-sec);
+  border: 1px solid var(--border);
+  padding: 2px 8px;
+  border-radius: 12px;
+  font-size: 11px;
+  font-weight: 600;
+}
+
+.btn-quick-adjust {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  padding: 2px 6px;
+  font-size: 11px;
+  cursor: pointer;
+  transition: .15s;
+}
+
+.btn-quick-adjust:hover {
+  border-color: var(--gold);
+}

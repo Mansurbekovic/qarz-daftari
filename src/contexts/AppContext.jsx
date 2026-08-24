@@ -58,7 +58,7 @@ export function AppProvider({ children }) {
     });
   }, []);
 
-  // --- Storage helpers ---
+  // --- Storage helpers (Instant Local First + Non-blocking Background Sync) ---
   const loadAccountsFromStorage = useCallback(async () => {
     try {
       const res = await storage.get(ACCOUNTS_KEY, false);
@@ -100,28 +100,6 @@ export function AppProvider({ children }) {
         }
       }
 
-      // 2. Auto-discover users from Flask Backend API if available
-      try {
-        const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users`, {}, 2500);
-        if (backendRes.ok) {
-          const backendUsers = await backendRes.json();
-          if (Array.isArray(backendUsers)) {
-            for (const u of backendUsers) {
-              const uname = u.username || u.name;
-              if (uname && !accs.some(a => a.username === uname)) {
-                accs.push({
-                  username: uname,
-                  businessName: u.businessName || u.name || uname,
-                  role: u.role || (uname === 'admin' ? 'admin' : 'user'),
-                  status: u.status || 'active',
-                  createdAt: u.createdAt || new Date().toISOString()
-                });
-              }
-            }
-          }
-        }
-      } catch (e) { /* backend offline, continue */ }
-
       // Ensure super admin exists
       if (!accs.some(a => a.username === 'admin')) {
         const adminHash = await sha256('admin123');
@@ -147,17 +125,41 @@ export function AppProvider({ children }) {
       }));
 
       await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
-      
-      // Also sync back to server
-      try {
-        await fetchWithTimeout(`${getApiBase()}/api/users/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(accs)
-        }, 2500);
-      } catch (e) { /* ignore */ }
-
       setAccounts(accs);
+
+      // Non-blocking Background Sync with backend API (Does NOT stall UI)
+      setTimeout(async () => {
+        try {
+          const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users`, {}, 3000);
+          if (backendRes.ok) {
+            const backendUsers = await backendRes.json();
+            if (Array.isArray(backendUsers)) {
+              setAccounts(prev => {
+                let updated = [...prev];
+                let changed = false;
+                for (const u of backendUsers) {
+                  const uname = u.username || u.name;
+                  if (uname && !updated.some(a => a.username === uname)) {
+                    updated.push({
+                      username: uname,
+                      businessName: u.businessName || u.name || uname,
+                      role: u.role || (uname === 'admin' ? 'admin' : 'user'),
+                      status: u.status || 'active',
+                      createdAt: u.createdAt || new Date().toISOString()
+                    });
+                    changed = true;
+                  }
+                }
+                if (changed) {
+                  storage.set(ACCOUNTS_KEY, JSON.stringify(updated), false);
+                }
+                return updated;
+              });
+            }
+          }
+        } catch (e) { /* background offline ignore */ }
+      }, 500);
+
       return accs;
     } catch (e) {
       const fallbackAdmin = [{
@@ -175,13 +177,15 @@ export function AppProvider({ children }) {
   const saveAccountsToStorage = useCallback(async (accs) => {
     try {
       await storage.set(ACCOUNTS_KEY, JSON.stringify(accs), false);
-      try {
-        await fetchWithTimeout(`${getApiBase()}/api/users/sync`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(accs)
-        }, 2500);
-      } catch (e) { /* ignore */ }
+      setTimeout(async () => {
+        try {
+          await fetchWithTimeout(`${getApiBase()}/api/users/sync`, {
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify(accs)
+          }, 3000);
+        } catch (e) { /* ignore */ }
+      }, 100);
     } catch (e) {
       toast('Hisoblar ro\'yxatini saqlashda xatolik', 'error');
     }
@@ -241,27 +245,36 @@ export function AppProvider({ children }) {
         data = { ...defaultDB(), ...JSON.parse(res.value) };
       }
 
-      // Sync with central backend server
-      try {
-        const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users/${username}/db`, {}, 2500);
-        if (backendRes.ok) {
-          const serverData = await backendRes.json();
-          if (serverData && Object.keys(serverData).length > 0) {
-            data = { ...defaultDB(), ...(data || {}), ...serverData };
-          }
-        }
-      } catch (e) { /* ignore */ }
-
       if (!data) data = defaultDB();
       if (!data.clients) data.clients = [];
       if (!data.transactions) data.transactions = [];
       if (!data.cards) data.cards = [];
       if (!data.cardTx) data.cardTx = [];
+      if (!data.kassaEntries) data.kassaEntries = [];
+      if (!data.products) data.products = [];
+      if (!data.warehouseLogs) data.warehouseLogs = [];
+      if (!data.contracts) data.contracts = [];
+      if (!data.staff) data.staff = [];
+      if (!data.userRole) data.userRole = 'admin';
       if (data.wallet && typeof data.wallet.balance === 'number' && data.wallet.balance !== 0 && data.cards.length === 0) {
         data.cards.push({ id: uid(), bank: 'Boshqa', type: 'virtual', holder: data.businessName || 'Mening kartam', number: genCardNumber('Boshqa'), last4: '0000', expiry: futureExpiry(), balance: data.wallet.balance, frozen: false, physicalStatus: null, createdAt: new Date().toISOString() });
       }
       data.clients.forEach(c => { if (!c.relation) c.relation = 'owed_to_me'; });
       data.cards.forEach(c => { if (typeof c.balance !== 'number') c.balance = 0; if (c.frozen === undefined) c.frozen = false; });
+
+      // Background Sync (Non-blocking, UI loads in 0ms)
+      setTimeout(async () => {
+        try {
+          const backendRes = await fetchWithTimeout(`${getApiBase()}/api/users/${username}/db`, {}, 3000);
+          if (backendRes.ok) {
+            const serverData = await backendRes.json();
+            if (serverData && Object.keys(serverData).length > 0) {
+              setDb(prev => ({ ...prev, ...serverData }));
+            }
+          }
+        } catch (e) { /* ignore */ }
+      }, 600);
+
       return data;
     } catch (e) {
       return defaultDB();
@@ -555,7 +568,7 @@ export function AppProvider({ children }) {
     }));
   }, [updateDB]);
 
-  // Transaction CRUD with Anti-Bug / Anti-Abuse validation
+  // Transaction CRUD with Anti-Bug / Anti-Abuse validation & Auto Stock Update
   const addTransaction = useCallback((tx) => {
     if (tx.amount > systemConfig.maxTxAmount) {
       addSecurityLog('EXCESSIVE_AMOUNT', currentUser, `Ruxsat etilgan limitdan yuqori summa: ${tx.amount}`, 'danger');
@@ -565,6 +578,32 @@ export function AppProvider({ children }) {
 
     updateDB(prev => {
       const next = { ...prev, transactions: [...prev.transactions, { id: uid(), ...tx }] };
+      
+      // Auto decrement stock if items from warehouse were sold
+      if (Array.isArray(tx.items) && tx.items.length > 0 && Array.isArray(prev.products)) {
+        next.products = prev.products.map(p => {
+          const matched = tx.items.find(i => (i.productId && i.productId === p.id) || (i.barcode && i.barcode === p.barcode) || (i.name && i.name.toLowerCase() === p.name.toLowerCase()));
+          if (matched) {
+            const soldQty = Number(matched.quantity || 1);
+            const newStock = Math.max(0, (p.stock || 0) - soldQty);
+            return { ...p, stock: newStock };
+          }
+          return p;
+        });
+
+        // Add log
+        const logEntries = tx.items.map(i => ({
+          id: uid(),
+          date: new Date().toISOString(),
+          type: 'sale',
+          itemName: i.name,
+          quantity: i.quantity,
+          unit: i.unit,
+          note: `Nasiya savdoga chiqim (Mijoz ID: ${tx.clientId})`
+        }));
+        next.warehouseLogs = [...(prev.warehouseLogs || []), ...logEntries];
+      }
+
       if (tx.cardId) {
         const client = prev.clients.find(c => c.id === tx.clientId);
         const iowe = client && client.relation === 'i_owe';
@@ -585,6 +624,111 @@ export function AppProvider({ children }) {
       transactions: prev.transactions.filter(t => t.id !== id)
     }));
   }, [updateDB]);
+
+  // Warehouse Products CRUD
+  const addProduct = useCallback((prod) => {
+    updateDB(prev => {
+      const newProd = {
+        id: uid(),
+        name: prod.name || 'Nomsiz tovar',
+        barcode: prod.barcode || '',
+        price: Number(prod.price || 0),
+        costPrice: Number(prod.costPrice || 0),
+        stock: Number(prod.stock || 0),
+        unit: prod.unit || 'dona',
+        category: prod.category || 'Boshqa',
+        minStock: Number(prod.minStock || 5),
+        createdAt: new Date().toISOString(),
+        updatedAt: new Date().toISOString()
+      };
+      const log = {
+        id: uid(),
+        date: new Date().toISOString(),
+        type: 'initial',
+        itemName: newProd.name,
+        quantity: newProd.stock,
+        unit: newProd.unit,
+        note: 'Boshlang\'ich qoldiq kiritildi'
+      };
+      return {
+        ...prev,
+        products: [...(prev.products || []), newProd],
+        warehouseLogs: [...(prev.warehouseLogs || []), log]
+      };
+    });
+    toast('Mahsulot omborga qo\'shildi');
+  }, [updateDB, toast]);
+
+  const updateProduct = useCallback((id, updates) => {
+    updateDB(prev => ({
+      ...prev,
+      products: (prev.products || []).map(p => p.id === id ? { ...p, ...updates, updatedAt: new Date().toISOString() } : p)
+    }));
+    toast('Mahsulot ma\'lumotlari yangilandi');
+  }, [updateDB, toast]);
+
+  const deleteProduct = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      products: (prev.products || []).filter(p => p.id !== id)
+    }));
+    toast('Mahsulot ombordan o\'chirildi');
+  }, [updateDB, toast]);
+
+  const adjustProductStock = useCallback((id, delta, reason = 'Korreksiya') => {
+    updateDB(prev => {
+      let prodName = '';
+      let prodUnit = 'dona';
+      const updatedProducts = (prev.products || []).map(p => {
+        if (p.id === id) {
+          prodName = p.name;
+          prodUnit = p.unit;
+          const newStock = Math.max(0, (p.stock || 0) + Number(delta));
+          return { ...p, stock: newStock, updatedAt: new Date().toISOString() };
+        }
+        return p;
+      });
+
+      const log = {
+        id: uid(),
+        date: new Date().toISOString(),
+        type: delta >= 0 ? 'incoming' : 'outgoing',
+        itemName: prodName,
+        quantity: Math.abs(delta),
+        unit: prodUnit,
+        note: reason
+      };
+
+      return {
+        ...prev,
+        products: updatedProducts,
+        warehouseLogs: [...(prev.warehouseLogs || []), log]
+      };
+    });
+  }, [updateDB]);
+
+  // Contracts / Promissory Notes CRUD
+  const saveContract = useCallback((contract) => {
+    updateDB(prev => {
+      const existingIdx = (prev.contracts || []).findIndex(c => c.id === contract.id);
+      let nextContracts;
+      if (existingIdx >= 0) {
+        nextContracts = prev.contracts.map(c => c.id === contract.id ? { ...c, ...contract, updatedAt: new Date().toISOString() } : c);
+      } else {
+        nextContracts = [...(prev.contracts || []), { id: uid(), ...contract, createdAt: new Date().toISOString() }];
+      }
+      return { ...prev, contracts: nextContracts };
+    });
+    toast('Qarz shartnomasi saqlandi');
+  }, [updateDB, toast]);
+
+  const deleteContract = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      contracts: (prev.contracts || []).filter(c => c.id !== id)
+    }));
+    toast('Shartnoma o\'chirildi');
+  }, [updateDB, toast]);
 
   // Card CRUD
   const addCard = useCallback((card) => {
@@ -882,6 +1026,10 @@ export function AppProvider({ children }) {
     addTransaction, deleteTransaction,
     addCard, deleteCard, toggleFreezeCard, updateCardStatus,
     addCardTx,
+    // Warehouse & Products
+    addProduct, updateProduct, deleteProduct, adjustProductStock,
+    // Contracts
+    saveContract, deleteContract,
     updateSettings, changePin, changePassword, deleteAccount,
     wipeData, exportData, importData, exportCards, importCards,
     updateDB,

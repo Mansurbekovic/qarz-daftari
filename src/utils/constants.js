@@ -1,8 +1,9 @@
-export const APP_VERSION = 'v1.2 Pro';
+export const APP_VERSION = 'v2.0 Ultimate';
 
 export const NAV_ITEMS = [
   { id: 'dashboard', label: 'Bosh sahifa', icon: '<path d="M3 11.5 12 4l9 7.5"/><path d="M5 10v10h14V10"/>' },
   { id: 'clients', label: 'Mijozlar', icon: '<circle cx="9" cy="8" r="3.2"/><path d="M2.5 20c0-3.6 3-6 6.5-6s6.5 2.4 6.5 6"/><circle cx="17.5" cy="8.5" r="2.4"/><path d="M15.5 14.2c2.7.4 4.6 2.4 4.6 5.3"/>' },
+  { id: 'warehouse', label: 'Omborxona (Sklad)', icon: '<path d="M21 16V8a2 2 0 0 0-1-1.73l-7-4a2 2 0 0 0-2 0l-7 4A2 2 0 0 0 3 8v8a2 2 0 0 0 1 1.73l7 4a2 2 0 0 0 2 0l7-4A2 2 0 0 0 21 16z"/><polyline points="3.27 6.96 12 12.01 20.73 6.96"/><line x1="12" y1="22.08" x2="12" y2="12"/>' },
   { id: 'kassa', label: 'Kassa & Savdo', icon: '<path d="M6 2 3 6v14a2 2 0 0 0 2 2h14a2 2 0 0 0 2-2V6l-3-4z"/><line x1="3" y1="6" x2="21" y2="6"/><path d="M16 10a4 4 0 0 1-8 0"/>' },
   { id: 'transactions', label: 'Tranzaksiyalar', icon: '<path d="M4 7h13l-3-3M20 17H7l3 3"/>' },
   { id: 'wallet', label: 'Kartalar', icon: '<rect x="3" y="6" width="18" height="13" rx="2.5"/><path d="M3 10h18"/><circle cx="16.5" cy="14.2" r="1.2" fill="currentColor" stroke="none"/>' },
@@ -53,9 +54,21 @@ export const MEASURE_UNITS = ['dona', 'kg', 'litr', 'metr', 'quti', 'pachka', 'b
 
 export const CLIENT_CATEGORIES = ['Oddiy', 'Doimiy', 'Ulgurji (Optom)', 'VIP', 'Qarindosh/Tanish', 'Ishonchli', 'Muammoli'];
 
+export const PRODUCT_CATEGORIES = [
+  'Oziq-ovqat',
+  'Ichimliklar',
+  'Maishiy kimyo',
+  'Qurilish mollari',
+  'Kiyim-kechak',
+  'Elektronika',
+  'Avtoehtiyot qismlar',
+  'Boshqa'
+];
+
 export const PAGE_TITLES = {
   dashboard: 'Bosh sahifa',
   clients: 'Mijozlar',
+  warehouse: 'Omborxona & Sklad',
   kassa: 'Kassa & Savdo Jurnali',
   transactions: 'Barcha tranzaksiyalar',
   wallet: 'Kartalarim',
@@ -78,6 +91,7 @@ export function defaultDB() {
     businessName: 'Mening biznesim',
     phone: '',
     address: '',
+    passport: '',
     theme: 'light',
     accent: 'gold',
     autoLockMinutes: 5,
@@ -90,6 +104,11 @@ export function defaultDB() {
     cards: [],
     cardTx: [],
     kassaEntries: [],
+    products: [],
+    warehouseLogs: [],
+    contracts: [],
+    staff: [],
+    userRole: 'admin',
   };
 }
 
@@ -103,4 +122,3 @@ export function defaultSystemConfig() {
     blockSuspiciousIps: true,
   };
 }
-
