@@ -2,24 +2,52 @@ import React from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { NAV_ITEMS, APP_VERSION } from '../../utils/constants';
 
-export default function Sidebar({ onLogoutClick }) {
+export default function Sidebar({ onLogoutClick, isOpenMobile, onCloseMobile }) {
   const { currentPage, navigate, totals, lockApp, currentUser, db, isAdmin } = useApp();
   const t = totals();
 
   const visibleNavItems = NAV_ITEMS.filter(item => !item.adminOnly || isAdmin);
 
+  const handleNavClick = (id) => {
+    navigate(id);
+    if (onCloseMobile) onCloseMobile();
+  };
+
   return (
-    <aside className="sidebar">
-      <div className="brand">
-        <div className="brand-mark">QD</div>
-        <div>
-          <div className="brand-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-            Qarz Daftari
-            <span className="version-badge">{APP_VERSION}</span>
+    <>
+      {isOpenMobile && (
+        <div className="mobile-drawer-backdrop" onClick={onCloseMobile} />
+      )}
+      <aside className={`sidebar ${isOpenMobile ? 'mobile-open' : ''}`}>
+        <div className="brand" style={{ justifyContent: 'space-between' }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+            <div className="brand-mark">QD</div>
+            <div>
+              <div className="brand-name" style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+                Qarz Daftari
+                <span className="version-badge">{APP_VERSION}</span>
+              </div>
+              <div className="brand-sub">{db?.businessName || 'Hisob-kitob tizimi'}</div>
+            </div>
           </div>
-          <div className="brand-sub">{db?.businessName || 'Hisob-kitob tizimi'}</div>
+          {isOpenMobile && (
+            <button
+              onClick={onCloseMobile}
+              style={{
+                background: 'rgba(255,255,255,0.1)',
+                border: 'none',
+                color: '#fff',
+                fontSize: '18px',
+                borderRadius: '8px',
+                width: '32px',
+                height: '32px',
+                cursor: 'pointer'
+              }}
+            >
+              ✕
+            </button>
+          )}
         </div>
-      </div>
 
       <nav className="nav">
         {visibleNavItems.map(item => {
@@ -30,7 +58,7 @@ export default function Sidebar({ onLogoutClick }) {
             <button
               key={item.id}
               className={`nav-item${isActive ? ' active' : ''}`}
-              onClick={() => navigate(item.id)}
+              onClick={() => handleNavClick(item.id)}
             >
               <svg
                 viewBox="0 0 24 24"
@@ -68,5 +96,6 @@ export default function Sidebar({ onLogoutClick }) {
         </button>
       </div>
     </aside>
+    </>
   );
 }

@@ -1,0 +1,292 @@
+/* =========================================================
+   MOBILE RESPONSIVENESS SYSTEM (ULTRA PHONE FRIENDLY)
+   Supports all screens: 320px, 375px, 390px, 412px, 430px
+   ========================================================= */
+
+/* Desktop defaults: mobile-only elements hidden */
+.mobile-bottom-nav {
+  display: none;
+}
+
+.mobile-menu-btn {
+  display: none;
+}
+
+.mobile-drawer-backdrop {
+  display: none;
+}
+
+/* =========================================================
+   SMARTPHONES & SMALL TABLETS (<= 768px)
+   ========================================================= */
+@media (max-width: 768px) {
+  /* Hide desktop permanent sidebar by default, show as drawer when active */
+  .sidebar {
+    position: fixed !important;
+    top: 0 !important;
+    left: 0 !important;
+    height: 100vh !important;
+    height: 100dvh !important;
+    width: 280px !important;
+    max-width: 85vw !important;
+    z-index: 1000 !important;
+    transform: translateX(-100%);
+    transition: transform 0.28s cubic-bezier(0.4, 0, 0.2, 1) !important;
+    box-shadow: none;
+  }
+
+  .sidebar.mobile-open {
+    transform: translateX(0) !important;
+    box-shadow: 10px 0 35px rgba(0, 0, 0, 0.5) !important;
+  }
+
+  /* Drawer backdrop */
+  .mobile-drawer-backdrop {
+    display: block;
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    bottom: 0;
+    background: rgba(0, 0, 0, 0.6);
+    backdrop-filter: blur(4px);
+    -webkit-backdrop-filter: blur(4px);
+    z-index: 999;
+    animation: fadeIn 0.2s ease;
+  }
+
+  /* Main Container & Page Padding */
+  .main {
+    width: 100% !important;
+    min-width: 0 !important;
+  }
+
+  .page {
+    padding: 12px 12px calc(84px + env(safe-area-inset-bottom, 0px)) !important;
+    width: 100% !important;
+    max-width: 100% !important;
+  }
+
+  /* Topbar Mobile Optimization */
+  .topbar {
+    padding: 10px 14px !important;
+    gap: 8px !important;
+  }
+
+  .topbar h1 {
+    font-size: 16px !important;
+    max-width: 140px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+
+  .mobile-menu-btn {
+    display: flex !important;
+    align-items: center;
+    justify-content: center;
+    width: 38px;
+    height: 38px;
+    border-radius: 10px;
+    border: 1px solid var(--border);
+    background: var(--surface);
+    color: var(--ink);
+    cursor: pointer;
+    flex-shrink: 0;
+  }
+
+  .search-box {
+    max-width: 100% !important;
+    padding: 7px 10px !important;
+    font-size: 13px !important;
+  }
+
+  /* Stat cards grid on mobile: 2-column or 1-column */
+  .dashboard-grid,
+  .stats-grid,
+  .grid-2,
+  .grid-3 {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .kpi-row {
+    grid-template-columns: 1fr 1fr !important;
+    gap: 8px !important;
+  }
+
+  .kpi-card {
+    padding: 12px !important;
+  }
+
+  .kpi-card .v {
+    font-size: 18px !important;
+  }
+
+  /* Client Cards on mobile */
+  .client-grid {
+    grid-template-columns: 1fr !important;
+    gap: 10px !important;
+  }
+
+  .client-card {
+    padding: 14px !important;
+  }
+
+  /* Chip filter groups: horizontal scrolling */
+  .chip-group {
+    display: flex !important;
+    overflow-x: auto !important;
+    white-space: nowrap !important;
+    padding-bottom: 6px !important;
+    -webkit-overflow-scrolling: touch;
+    width: 100% !important;
+  }
+
+  .chip {
+    flex-shrink: 0 !important;
+    padding: 6px 12px !important;
+    font-size: 12px !important;
+  }
+
+  /* Buttons on mobile */
+  .btn {
+    min-height: 42px;
+    touch-action: manipulation;
+  }
+
+  /* Modal on mobile: bottom sheet look & feel */
+  .modal {
+    max-width: 100% !important;
+    width: 100% !important;
+    margin: 0 !important;
+    border-radius: 20px 20px 0 0 !important;
+    max-height: 90vh !important;
+    max-height: 90dvh !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    animation: slideUpMobile 0.25s cubic-bezier(0.3, 1, 0.4, 1) !important;
+  }
+
+  .modal-backdrop {
+    align-items: flex-end !important;
+    padding: 0 !important;
+  }
+
+  /* Tables: responsive wrapper */
+  .table-wrap {
+    overflow-x: auto !important;
+    -webkit-overflow-scrolling: touch !important;
+    border-radius: 12px !important;
+  }
+
+  /* =========================================================
+     MOBILE BOTTOM NAVIGATION BAR
+     ========================================================= */
+  .mobile-bottom-nav {
+    display: flex !important;
+    position: fixed !important;
+    bottom: 0 !important;
+    left: 0 !important;
+    right: 0 !important;
+    height: calc(64px + env(safe-area-inset-bottom, 0px)) !important;
+    padding-bottom: env(safe-area-inset-bottom, 0px) !important;
+    background: rgba(14, 36, 25, 0.95) !important;
+    backdrop-filter: blur(16px) !important;
+    -webkit-backdrop-filter: blur(16px) !important;
+    border-top: 1px solid rgba(212, 160, 23, 0.25) !important;
+    z-index: 900 !important;
+    justify-content: space-around !important;
+    align-items: center !important;
+    box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.3) !important;
+  }
+
+  body.light .mobile-bottom-nav {
+    background: rgba(255, 255, 255, 0.95) !important;
+    border-top: 1px solid rgba(0, 0, 0, 0.08) !important;
+  }
+
+  .mobile-nav-btn {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    justify-content: center;
+    background: none;
+    border: none;
+    color: rgba(255, 255, 255, 0.65);
+    padding: 6px 10px;
+    font-family: inherit;
+    cursor: pointer;
+    position: relative;
+    flex: 1;
+    min-height: 48px;
+    touch-action: manipulation;
+    transition: all 0.18s ease;
+  }
+
+  body.light .mobile-nav-btn {
+    color: #64748B;
+  }
+
+  .mobile-nav-icon-wrap {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 26px;
+    height: 26px;
+  }
+
+  .mobile-nav-icon-wrap svg {
+    width: 22px;
+    height: 22px;
+    transition: transform 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+  }
+
+  .mobile-nav-label {
+    font-size: 10px;
+    font-weight: 600;
+    margin-top: 3px;
+    letter-spacing: -0.01em;
+  }
+
+  .mobile-nav-badge {
+    position: absolute;
+    top: -4px;
+    right: -8px;
+    color: #fff;
+    font-size: 9px;
+    font-weight: 800;
+    min-width: 16px;
+    height: 16px;
+    border-radius: 8px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 0 4px;
+    box-shadow: 0 2px 5px rgba(0,0,0,0.3);
+  }
+
+  .mobile-nav-btn.active {
+    color: #D4A017 !important;
+  }
+
+  .mobile-nav-btn.active .mobile-nav-icon-wrap svg {
+    transform: translateY(-2px) scale(1.1);
+  }
+
+  .mobile-nav-btn.active .mobile-nav-label {
+    font-weight: 800;
+  }
+}
+
+@keyframes slideUpMobile {
+  from {
+    transform: translateY(100%);
+  }
+  to {
+    transform: translateY(0);
+  }
+}

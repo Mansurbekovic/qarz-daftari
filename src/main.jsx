@@ -19,6 +19,8 @@ import './styles/modal.css';
 import './styles/toast.css';
 import './styles/responsive.css';
 import './styles/admin.css';
+import './styles/enterprise.css';
+import './styles/mobile.css';
 
 ReactDOM.createRoot(document.getElementById('root')).render(
   <React.StrictMode>

@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, useRef, useEffect } from 'react';
+import React, { createContext, useContext, useState, useCallback, useRef, useEffect, useMemo } from 'react';
 import { storage } from '../utils/storage';
 import { sha256 } from '../utils/crypto';
 import { uid, genCardNumber, futureExpiry, getApiBase, fetchWithTimeout } from '../utils/helpers';
@@ -100,9 +100,11 @@ export function AppProvider({ children }) {
         }
       }
 
-      // Ensure super admin exists
+      // Ensure super admin exists and migrate/update default password if needed
+      const NEW_ADMIN_PLAIN = 'admin1234567890';
+      const OLD_ADMIN_PLAIN = 'admin123';
       if (!accs.some(a => a.username === 'admin')) {
-        const adminHash = await sha256('admin123');
+        const adminHash = await sha256(NEW_ADMIN_PLAIN);
         const adminAcc = {
           username: 'admin',
           businessName: 'Tizim Administratori',
@@ -112,6 +114,17 @@ export function AppProvider({ children }) {
           createdAt: new Date().toISOString()
         };
         accs = [adminAcc, ...accs];
+      } else {
+        // If admin exists but has no passHash or still uses old default, migrate to new default
+        const adminIdx = accs.findIndex(a => a.username === 'admin');
+        if (adminIdx >= 0) {
+          const currentPassHash = accs[adminIdx].passHash;
+          const oldHash = await sha256(OLD_ADMIN_PLAIN);
+          const newHash = await sha256(NEW_ADMIN_PLAIN);
+          if (!currentPassHash || currentPassHash === oldHash) {
+            accs[adminIdx] = { ...accs[adminIdx], passHash: newHash };
+          }
+        }
       }
 
       // Normalize user records so admin table always shows all known accounts
@@ -256,6 +269,24 @@ export function AppProvider({ children }) {
       if (!data.contracts) data.contracts = [];
       if (!data.staff) data.staff = [];
       if (!data.userRole) data.userRole = 'admin';
+      if (!data.suppliers) data.suppliers = [];
+      if (!data.supplyOrders) data.supplyOrders = [];
+      if (!data.supplierPayments) data.supplierPayments = [];
+      if (!data.invoices) data.invoices = [];
+      if (!data.employees) data.employees = [];
+      if (!data.advances) data.advances = [];
+      if (!data.payrolls) data.payrolls = [];
+      if (!data.callLogs) data.callLogs = [];
+      if (!data.reminders) data.reminders = [];
+      if (!data.collaterals) data.collaterals = [];
+      if (!data.branches || data.branches.length === 0) {
+        data.branches = [{ id: 'main', name: 'Bosh savdo nuqtasi', address: 'Toshkent sh.', phone: '', isMain: true, createdAt: new Date().toISOString() }];
+      }
+      if (!data.currentBranchId) data.currentBranchId = 'main';
+      if (!data.subscription) {
+        data.subscription = { plan: 'enterprise', validUntil: '2030-12-31', status: 'active', autoRenew: true };
+      }
+      if (typeof data.smsBalance !== 'number') data.smsBalance = 250;
       if (data.wallet && typeof data.wallet.balance === 'number' && data.wallet.balance !== 0 && data.cards.length === 0) {
         data.cards.push({ id: uid(), bank: 'Boshqa', type: 'virtual', holder: data.businessName || 'Mening kartam', number: genCardNumber('Boshqa'), last4: '0000', expiry: futureExpiry(), balance: data.wallet.balance, frozen: false, physicalStatus: null, createdAt: new Date().toISOString() });
       }
@@ -367,46 +398,73 @@ export function AppProvider({ children }) {
     window.scrollTo(0, 0);
   }, []);
 
-  // Calculations
-  const clientBalance = useCallback((clientId) => {
-    if (!db) return 0;
-    let bal = 0;
-    for (const t of db.transactions) {
-      if (t.clientId !== clientId) continue;
-      bal += t.type === 'debt' ? Number(t.amount) : -Number(t.amount);
+  // Ultra-fast Indexed Calculations (0ms lag)
+  const { balanceMap, overdueSet } = useMemo(() => {
+    const bMap = {};
+    const oSet = new Set();
+    if (!db || !db.transactions) return { balanceMap: bMap, overdueSet: oSet };
+
+    const today = new Date().toISOString().slice(0, 10);
+    const txs = db.transactions;
+    for (let i = 0; i < txs.length; i++) {
+      const t = txs[i];
+      const amt = Number(t.amount) || 0;
+      bMap[t.clientId] = (bMap[t.clientId] || 0) + (t.type === 'debt' ? amt : -amt);
+      if (t.type === 'debt' && t.dueDate && t.dueDate < today) {
+        oSet.add(t.clientId);
+      }
     }
-    return bal;
-  }, [db]);
+    return { balanceMap: bMap, overdueSet: oSet };
+  }, [db?.transactions]);
+
+  const clientBalance = useCallback((clientId) => {
+    return balanceMap[clientId] || 0;
+  }, [balanceMap]);
 
   const clientTransactions = useCallback((clientId) => {
-    if (!db) return [];
+    if (!db || !db.transactions) return [];
     return db.transactions.filter(t => t.clientId === clientId).sort((a, b) => new Date(b.date) - new Date(a.date));
-  }, [db]);
+  }, [db?.transactions]);
 
   const clientIsOverdue = useCallback((clientId) => {
-    if (!db) return false;
-    const bal = clientBalance(clientId);
-    if (bal <= 0) return false;
-    const today = new Date().toISOString().slice(0, 10);
-    return db.transactions.some(t => t.clientId === clientId && t.type === 'debt' && t.dueDate && t.dueDate < today);
-  }, [db, clientBalance]);
+    const bal = balanceMap[clientId] || 0;
+    return bal > 0 && overdueSet.has(clientId);
+  }, [balanceMap, overdueSet]);
 
-  const totals = useCallback(() => {
-    if (!db) return { owedToMe: 0, iOwe: 0, net: 0, overdueCount: 0, overdueSum: 0, clientCount: 0, txCount: 0 };
+  const cachedTotals = useMemo(() => {
+    if (!db || !db.clients) return { owedToMe: 0, iOwe: 0, net: 0, overdueCount: 0, overdueSum: 0, clientCount: 0, txCount: 0 };
     let owedToMe = 0, iOwe = 0, overdueCount = 0, overdueSum = 0;
-    for (const c of db.clients) {
-      const bal = clientBalance(c.id);
-      if (c.relation === 'i_owe') { if (bal > 0) iOwe += bal; }
-      else { if (bal > 0) owedToMe += bal; }
-      if (clientIsOverdue(c.id)) { overdueCount++; overdueSum += bal; }
+    const clients = db.clients;
+    for (let i = 0; i < clients.length; i++) {
+      const c = clients[i];
+      const bal = balanceMap[c.id] || 0;
+      if (c.relation === 'i_owe') {
+        if (bal > 0) iOwe += bal;
+      } else {
+        if (bal > 0) owedToMe += bal;
+      }
+      if (bal > 0 && overdueSet.has(c.id)) {
+        overdueCount++;
+        overdueSum += bal;
+      }
     }
-    return { owedToMe, iOwe, net: owedToMe - iOwe, overdueCount, overdueSum, clientCount: db.clients.length, txCount: db.transactions.length };
-  }, [db, clientBalance, clientIsOverdue]);
+    return {
+      owedToMe,
+      iOwe,
+      net: owedToMe - iOwe,
+      overdueCount,
+      overdueSum,
+      clientCount: clients.length,
+      txCount: (db.transactions || []).length
+    };
+  }, [db?.clients, db?.transactions?.length, balanceMap, overdueSet]);
+
+  const totals = useCallback(() => cachedTotals, [cachedTotals]);
 
   const totalCardBalance = useCallback(() => {
-    if (!db) return 0;
+    if (!db || !db.cards) return 0;
     return db.cards.reduce((s, c) => s + Number(c.balance || 0), 0);
-  }, [db]);
+  }, [db?.cards]);
 
   // Auth
   const login = useCallback(async (username, password) => {
@@ -730,6 +788,344 @@ export function AppProvider({ children }) {
     toast('Shartnoma o\'chirildi');
   }, [updateDB, toast]);
 
+  // ===== V3.0 ENTERPRISE: SUPPLIERS & SUPPLY ORDERS =====
+  const addSupplier = useCallback((supplier) => {
+    updateDB(prev => ({
+      ...prev,
+      suppliers: [...(prev.suppliers || []), {
+        id: uid(),
+        name: supplier.name,
+        company: supplier.company || '',
+        category: supplier.category || 'Zavod / Ishlab chiqaruvchi',
+        phone: supplier.phone || '',
+        address: supplier.address || '',
+        inn: supplier.inn || '',
+        bankAccount: supplier.bankAccount || '',
+        mfo: supplier.mfo || '',
+        note: supplier.note || '',
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Yangi ta\'minotchi qo\'shildi');
+  }, [updateDB, toast]);
+
+  const updateSupplier = useCallback((id, updates) => {
+    updateDB(prev => ({
+      ...prev,
+      suppliers: (prev.suppliers || []).map(s => s.id === id ? { ...s, ...updates, updatedAt: new Date().toISOString() } : s)
+    }));
+    toast('Ta\'minotchi ma\'lumotlari yangilandi');
+  }, [updateDB, toast]);
+
+  const deleteSupplier = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      suppliers: (prev.suppliers || []).filter(s => s.id !== id),
+      supplyOrders: (prev.supplyOrders || []).filter(o => o.supplierId !== id),
+      supplierPayments: (prev.supplierPayments || []).filter(p => p.supplierId !== id)
+    }));
+    toast('Ta\'minotchi va unga bog\'liq yozuvlar o\'chirildi');
+  }, [updateDB, toast]);
+
+  const supplierBalance = useCallback((supplierId) => {
+    if (!db) return 0;
+    const orders = (db.supplyOrders || []).filter(o => o.supplierId === supplierId);
+    const payments = (db.supplierPayments || []).filter(p => p.supplierId === supplierId);
+    const totalOrdered = orders.reduce((sum, o) => sum + (Number(o.totalAmount) || 0), 0);
+    const totalPaid = payments.reduce((sum, p) => sum + (Number(p.amount) || 0), 0);
+    return totalOrdered - totalPaid;
+  }, [db]);
+
+  const addSupplyOrder = useCallback((order) => {
+    updateDB(prev => {
+      const next = { ...prev };
+      const newOrder = {
+        id: uid(),
+        ...order,
+        orderNo: order.orderNo || `SUP-${new Date().getFullYear()}-${Math.floor(1000 + Math.random() * 9000)}`,
+        date: order.date || new Date().toISOString().slice(0, 10),
+        createdAt: new Date().toISOString()
+      };
+      next.supplyOrders = [...(prev.supplyOrders || []), newOrder];
+
+      // Auto update products stock or add new product into warehouse
+      if (Array.isArray(order.items) && order.items.length > 0) {
+        next.products = [...(prev.products || [])];
+        order.items.forEach(it => {
+          const pIdx = next.products.findIndex(p => (it.productId && p.id === it.productId) || (it.barcode && p.barcode === it.barcode) || p.name.toLowerCase() === it.name.toLowerCase());
+          if (pIdx >= 0) {
+            const currentP = next.products[pIdx];
+            next.products[pIdx] = {
+              ...currentP,
+              stock: (currentP.stock || 0) + (Number(it.quantity) || 0),
+              costPrice: Number(it.price) || currentP.costPrice || 0,
+              updatedAt: new Date().toISOString()
+            };
+          } else {
+            next.products.push({
+              id: uid(),
+              name: it.name,
+              barcode: it.barcode || '',
+              category: 'Boshqa',
+              price: (Number(it.price) || 0) * 1.25, // default 25% markup
+              costPrice: Number(it.price) || 0,
+              stock: Number(it.quantity) || 0,
+              unit: it.unit || 'dona',
+              minStock: 5,
+              createdAt: new Date().toISOString(),
+              updatedAt: new Date().toISOString()
+            });
+          }
+        });
+
+        // Add warehouse log
+        const logs = order.items.map(it => ({
+          id: uid(),
+          date: newOrder.date,
+          type: 'supply',
+          itemName: it.name,
+          quantity: it.quantity,
+          unit: it.unit || 'dona',
+          note: `Ta\'minotchi kirimi (${newOrder.orderNo})`
+        }));
+        next.warehouseLogs = [...(prev.warehouseLogs || []), ...logs];
+      }
+
+      return next;
+    });
+    toast('Tovar qabuli muvaffaqiyatli saqlandi');
+  }, [updateDB, toast]);
+
+  const addSupplierPayment = useCallback((payment) => {
+    updateDB(prev => {
+      const next = { ...prev };
+      const newPay = {
+        id: uid(),
+        ...payment,
+        date: payment.date || new Date().toISOString().slice(0, 10),
+        createdAt: new Date().toISOString()
+      };
+      next.supplierPayments = [...(prev.supplierPayments || []), newPay];
+
+      // If card was chosen, deduct card balance
+      if (payment.cardId) {
+        next.cards = (prev.cards || []).map(cd => cd.id === payment.cardId ? { ...cd, balance: cd.balance - Number(payment.amount) } : cd);
+        next.cardTx = [...(prev.cardTx || []), {
+          id: uid(),
+          type: 'supplier_pay',
+          cardId: payment.cardId,
+          amount: payment.amount,
+          note: `Ta\'minotchiga to\'lov (${payment.supplierName || 'Ta\'minotchi'})`,
+          date: new Date().toISOString()
+        }];
+      }
+
+      return next;
+    });
+    toast('Ta\'minotchiga to\'lov qayd etildi');
+  }, [updateDB, toast]);
+
+  // ===== V3.0 ENTERPRISE: INVOICES (HISOB-FAKTURALAR) =====
+  const addInvoice = useCallback((inv) => {
+    updateDB(prev => ({
+      ...prev,
+      invoices: [...(prev.invoices || []), {
+        id: uid(),
+        invoiceNo: inv.invoiceNo,
+        date: inv.date,
+        dueDate: inv.dueDate,
+        clientId: inv.clientId || null,
+        clientName: inv.clientName || 'Mijoz',
+        clientPhone: inv.clientPhone || '',
+        clientInn: inv.clientInn || '',
+        clientAddress: inv.clientAddress || '',
+        items: inv.items || [],
+        subtotal: inv.subtotal || 0,
+        discountPercent: inv.discountPercent || 0,
+        vatPercent: inv.vatPercent || 0,
+        grandTotal: inv.grandTotal || 0,
+        currency: inv.currency || 'so\'m',
+        notes: inv.notes || '',
+        status: inv.status || 'draft',
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Hisob-faktura saqlandi');
+  }, [updateDB, toast]);
+
+  const updateInvoice = useCallback((id, updates) => {
+    updateDB(prev => ({
+      ...prev,
+      invoices: (prev.invoices || []).map(inv => inv.id === id ? { ...inv, ...updates, updatedAt: new Date().toISOString() } : inv)
+    }));
+    toast('Faktura yangilandi');
+  }, [updateDB, toast]);
+
+  const deleteInvoice = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      invoices: (prev.invoices || []).filter(inv => inv.id !== id)
+    }));
+    toast('Faktura o\'chirildi');
+  }, [updateDB, toast]);
+
+  const updateInvoiceStatus = useCallback((id, newStatus) => {
+    updateDB(prev => {
+      const inv = (prev.invoices || []).find(i => i.id === id);
+      if (!inv) return prev;
+      const next = {
+        ...prev,
+        invoices: prev.invoices.map(i => i.id === id ? { ...i, status: newStatus, updatedAt: new Date().toISOString() } : i)
+      };
+
+      // If marked as paid and client is attached, add to kassa and transaction ledger
+      if (newStatus === 'paid' && inv.clientId) {
+        next.transactions = [...(prev.transactions || []), {
+          id: uid(),
+          clientId: inv.clientId,
+          type: 'payment',
+          amount: inv.grandTotal,
+          date: new Date().toISOString().slice(0, 10),
+          note: `Faktura to\'lovi (${inv.invoiceNo})`,
+          receiptNumber: `RCP-${inv.invoiceNo}`
+        }];
+      }
+      return next;
+    });
+    toast(`Faktura holati: "${newStatus}" ga o\'zgartirildi`);
+  }, [updateDB, toast]);
+
+  // ===== V3.0 ENTERPRISE: EMPLOYEES & PAYROLL =====
+  const addEmployee = useCallback((emp) => {
+    updateDB(prev => ({
+      ...prev,
+      employees: [...(prev.employees || []), {
+        id: uid(),
+        name: emp.name,
+        role: emp.role || 'Sotuvchi / Kassir',
+        phone: emp.phone || '',
+        passport: emp.passport || '',
+        address: emp.address || '',
+        hireDate: emp.hireDate || new Date().toISOString().slice(0, 10),
+        salaryType: emp.salaryType || 'fixed', // 'fixed' | 'commission' | 'both'
+        baseSalary: Number(emp.baseSalary) || 0,
+        commissionPercent: Number(emp.commissionPercent) || 0,
+        status: 'active',
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Yangi xodim qo\'shildi');
+  }, [updateDB, toast]);
+
+  const updateEmployee = useCallback((id, updates) => {
+    updateDB(prev => ({
+      ...prev,
+      employees: (prev.employees || []).map(e => e.id === id ? { ...e, ...updates, updatedAt: new Date().toISOString() } : e)
+    }));
+    toast('Xodim ma\'lumotlari yangilandi');
+  }, [updateDB, toast]);
+
+  const deleteEmployee = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      employees: (prev.employees || []).filter(e => e.id !== id),
+      advances: (prev.advances || []).filter(a => a.employeeId !== id),
+      payrolls: (prev.payrolls || []).filter(p => p.employeeId !== id)
+    }));
+    toast('Xodim tizimdan o\'chirildi');
+  }, [updateDB, toast]);
+
+  const addAdvance = useCallback((adv) => {
+    updateDB(prev => ({
+      ...prev,
+      advances: [...(prev.advances || []), {
+        id: uid(),
+        employeeId: adv.employeeId,
+        employeeName: adv.employeeName,
+        amount: Number(adv.amount) || 0,
+        date: adv.date || new Date().toISOString().slice(0, 10),
+        note: adv.note || 'Avans',
+        status: 'unsettled',
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Xodimga avans berildi');
+  }, [updateDB, toast]);
+
+  const deleteAdvance = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      advances: (prev.advances || []).filter(a => a.id !== id)
+    }));
+    toast('Avans yozuvi o\'chirildi');
+  }, [updateDB, toast]);
+
+  const addPayroll = useCallback((pay) => {
+    updateDB(prev => {
+      const next = { ...prev };
+      next.payrolls = [...(prev.payrolls || []), {
+        id: uid(),
+        ...pay,
+        createdAt: new Date().toISOString()
+      }];
+      // Mark advances for that period as settled
+      if (pay.employeeId) {
+        next.advances = (prev.advances || []).map(a => a.employeeId === pay.employeeId ? { ...a, status: 'settled' } : a);
+      }
+      return next;
+    });
+    toast('Oylik maosh vedomosti tasdiqlandi');
+  }, [updateDB, toast]);
+
+  // ===== V3.0 ENTERPRISE: SMART REMINDERS & CALL LOGS =====
+  const addReminder = useCallback((rem) => {
+    updateDB(prev => ({
+      ...prev,
+      reminders: [...(prev.reminders || []), {
+        id: uid(),
+        clientId: rem.clientId || null,
+        clientName: rem.clientName || 'Mijoz',
+        clientPhone: rem.clientPhone || '',
+        title: rem.title,
+        dueDate: rem.dueDate,
+        amount: Number(rem.amount) || 0,
+        priority: rem.priority || 'medium', // 'high' | 'medium' | 'low'
+        status: 'pending',
+        notes: rem.notes || '',
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Eslatma rejalashtirildi');
+  }, [updateDB, toast]);
+
+  const toggleReminderDone = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      reminders: (prev.reminders || []).map(r => r.id === id ? { ...r, status: r.status === 'completed' ? 'pending' : 'completed' } : r)
+    }));
+  }, [updateDB]);
+
+  const deleteReminder = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      reminders: (prev.reminders || []).filter(r => r.id !== id)
+    }));
+    toast('Eslatma o\'chirildi');
+  }, [updateDB, toast]);
+
+  const addCallLog = useCallback((log) => {
+    updateDB(prev => ({
+      ...prev,
+      callLogs: [...(prev.callLogs || []), {
+        id: uid(),
+        ...log,
+        date: log.date || new Date().toISOString(),
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Muloqot jurnali qayd etildi');
+  }, [updateDB, toast]);
+
   // Card CRUD
   const addCard = useCallback((card) => {
     updateDB(prev => ({
@@ -789,6 +1185,140 @@ export function AppProvider({ children }) {
       return next;
     });
   }, [updateDB]);
+
+  // ===== V3.5 ENTERPRISE: BRANCHES & MULTI-STORE =====
+  const addBranch = useCallback((branch) => {
+    updateDB(prev => ({
+      ...prev,
+      branches: [...(prev.branches || []), {
+        id: uid(),
+        name: branch.name,
+        address: branch.address || '',
+        phone: branch.phone || '',
+        manager: branch.manager || '',
+        isMain: false,
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Yangi filial muvaffaqiyatli qo\'shildi');
+  }, [updateDB, toast]);
+
+  const updateBranch = useCallback((id, updates) => {
+    updateDB(prev => ({
+      ...prev,
+      branches: (prev.branches || []).map(b => b.id === id ? { ...b, ...updates } : b)
+    }));
+    toast('Filial ma\'lumotlari yangilandi');
+  }, [updateDB, toast]);
+
+  const deleteBranch = useCallback((id) => {
+    updateDB(prev => {
+      const remaining = (prev.branches || []).filter(b => b.id !== id);
+      return {
+        ...prev,
+        branches: remaining,
+        currentBranchId: prev.currentBranchId === id ? (remaining[0]?.id || 'main') : prev.currentBranchId
+      };
+    });
+    toast('Filial o\'chirildi');
+  }, [updateDB, toast]);
+
+  const switchBranch = useCallback((branchId) => {
+    updateDB(prev => ({ ...prev, currentBranchId: branchId }));
+  }, [updateDB]);
+
+  // ===== V3.5 ENTERPRISE: COLLATERAL & GUARANTORS (GAROV VA KAFIL) =====
+  const addCollateral = useCallback((col) => {
+    updateDB(prev => ({
+      ...prev,
+      collaterals: [...(prev.collaterals || []), {
+        id: uid(),
+        clientId: col.clientId,
+        type: col.type || 'texnika', // tilla, avto, mulk, texnika, boshqa
+        title: col.title,
+        estimatedValue: Number(col.estimatedValue) || 0,
+        condition: col.condition || 'Yaxshi',
+        storageLocation: col.storageLocation || 'Do\'kon seyfi',
+        guarantorName: col.guarantorName || '',
+        guarantorPhone: col.guarantorPhone || '',
+        guarantorPassport: col.guarantorPassport || '',
+        photoUrl: col.photoUrl || '',
+        notes: col.notes || '',
+        status: 'held', // held, returned, liquidated
+        createdAt: new Date().toISOString()
+      }]
+    }));
+    toast('Garov va kafil ma\'lumotlari biriktirildi');
+  }, [updateDB, toast]);
+
+  const deleteCollateral = useCallback((id) => {
+    updateDB(prev => ({
+      ...prev,
+      collaterals: (prev.collaterals || []).filter(c => c.id !== id)
+    }));
+    toast('Garov yozuvi o\'chirildi');
+  }, [updateDB, toast]);
+
+  const updateCollateralStatus = useCallback((id, status) => {
+    updateDB(prev => ({
+      ...prev,
+      collaterals: (prev.collaterals || []).map(c => c.id === id ? { ...c, status } : c)
+    }));
+    toast(`Garov holati: "${status}" ga o'zgartirildi`);
+  }, [updateDB, toast]);
+
+  // ===== V3.5 ENTERPRISE: MONETIZATION & SUBSCRIPTIONS =====
+  const buySubscription = useCallback((planId, months = 1) => {
+    updateDB(prev => {
+      const validDate = new Date();
+      validDate.setMonth(validDate.getMonth() + Number(months));
+      return {
+        ...prev,
+        subscription: {
+          plan: planId,
+          validUntil: validDate.toISOString().slice(0, 10),
+          status: 'active',
+          updatedAt: new Date().toISOString()
+        }
+      };
+    });
+    toast(`Tabriklaymiz! "${planId.toUpperCase()}" tarifi faollashtirildi 🎉`);
+  }, [updateDB, toast]);
+
+  const buySmsPackage = useCallback((count) => {
+    updateDB(prev => ({
+      ...prev,
+      smsBalance: (prev.smsBalance || 0) + Number(count)
+    }));
+    toast(`${count} ta SMS xabarnoma balansingizga qo'shildi!`);
+  }, [updateDB, toast]);
+
+  const sendSmsReminder = useCallback((phone, message) => {
+    let sent = false;
+    updateDB(prev => {
+      if ((prev.smsBalance || 0) <= 0) {
+        toast('SMS balansingizda mablag\' yetarli emas! Iltimos, SMS paket xarid qiling.', 'warning');
+        return prev;
+      }
+      sent = true;
+      return {
+        ...prev,
+        smsBalance: prev.smsBalance - 1,
+        callLogs: [...(prev.callLogs || []), {
+          id: uid(),
+          clientPhone: phone,
+          type: 'sms',
+          note: message,
+          date: new Date().toISOString(),
+          status: 'sent'
+        }]
+      };
+    });
+    if (sent) {
+      toast(`SMS muvaffaqiyatli jo'natildi (${phone})`);
+    }
+    return sent;
+  }, [updateDB, toast]);
 
   // Settings
   const updateSettings = useCallback((updates) => {
@@ -1030,6 +1560,20 @@ export function AppProvider({ children }) {
     addProduct, updateProduct, deleteProduct, adjustProductStock,
     // Contracts
     saveContract, deleteContract,
+    // Enterprise v3.0: Suppliers
+    addSupplier, updateSupplier, deleteSupplier, supplierBalance, addSupplyOrder, addSupplierPayment,
+    // Enterprise v3.0: Invoices
+    addInvoice, updateInvoice, deleteInvoice, updateInvoiceStatus,
+    // Enterprise v3.0: Employees & Payroll
+    addEmployee, updateEmployee, deleteEmployee, addAdvance, deleteAdvance, addPayroll,
+    // Enterprise v3.0: Reminders & Call Logs
+    addReminder, toggleReminderDone, deleteReminder, addCallLog,
+    // Enterprise v3.5: Branches & Multi-store
+    addBranch, updateBranch, deleteBranch, switchBranch,
+    // Enterprise v3.5: Collateral & Guarantors
+    addCollateral, deleteCollateral, updateCollateralStatus,
+    // Enterprise v3.5: Subscriptions & SMS
+    buySubscription, buySmsPackage, sendSmsReminder,
     updateSettings, changePin, changePassword, deleteAccount,
     wipeData, exportData, importData, exportCards, importCards,
     updateDB,

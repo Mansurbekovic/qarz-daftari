@@ -2,12 +2,14 @@ import React, { useState } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
 import { fmtMoney, fmtDate, generateReceiptNumber, telegramReceiptLink, whatsappReminderLink } from '../../utils/helpers';
+import { buildEscPosReceiptBuffer, sendToThermalPrinter, isThermalPrintingSupported } from '../../utils/escpos';
 
 export default function ReceiptModal({ client, transaction, onClose }) {
   const { db } = useApp();
   const toast = useToast();
   const [receiptNumber] = useState(transaction?.receiptNumber || generateReceiptNumber());
   const [format, setFormat] = useState('thermal'); // 'thermal' | 'standard'
+  const [printingThermal, setPrintingThermal] = useState(false);
 
   if (!client || !transaction) return null;
 
@@ -46,6 +48,40 @@ export default function ReceiptModal({ client, transaction, onClose }) {
       db.businessName || 'Qarz Daftari'
     );
     window.open(link, '_blank');
+  };
+
+  const handleDirectThermalPrint = async () => {
+    try {
+      setPrintingThermal(true);
+      const buffer = buildEscPosReceiptBuffer({
+        businessName: db.businessName || 'QARZ DAFTARI',
+        phone: db.phone || '',
+        address: db.address || '',
+        receiptNumber: receiptNumber,
+        date: fmtDate(transaction.date),
+        clientName: client.name,
+        clientPhone: client.phone,
+        type: transaction.type,
+        items: items,
+        amount: transaction.amount,
+        currency: db.currency,
+        totalBalance: totalBal,
+        dueDate: transaction.dueDate ? fmtDate(transaction.dueDate) : null,
+        note: transaction.note,
+        width: format === 'thermal' ? 58 : 80
+      });
+
+      const res = await sendToThermalPrinter(buffer);
+      if (res?.success) {
+        toast(`Chek printerga muvaffaqiyatli uzatildi (${res.channel === 'serial' ? 'USB/Serial' : 'Bluetooth'})`);
+      } else if (!res?.cancelled) {
+        toast('Termal printerga ulanish bekor qilindi', 'info');
+      }
+    } catch (err) {
+      toast(err.message || 'Printer bilan bog\'lanishda xatolik', 'error');
+    } finally {
+      setPrintingThermal(false);
+    }
   };
 
   return (
@@ -171,8 +207,11 @@ export default function ReceiptModal({ client, transaction, onClose }) {
 
           {/* Action Buttons */}
           <div className="modal-actions no-print" style={{ marginTop: '16px', flexWrap: 'wrap' }}>
-            <button className="btn btn-gold" onClick={handlePrint}>
-              🖨️ Chop etish / PDF
+            <button className="btn btn-gold" onClick={handleDirectThermalPrint} disabled={printingThermal}>
+              ⚡ {printingThermal ? 'Printerga uzatilmoqda...' : 'ESC/POS Termal Chek'}
+            </button>
+            <button className="btn btn-outline" onClick={handlePrint}>
+              🖨️ Oddiy Chop / PDF
             </button>
             <button className="btn btn-teal" onClick={handleSendTelegram}>
               ✈️ Telegram Chek

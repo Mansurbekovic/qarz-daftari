@@ -21,6 +21,7 @@ export default function Clients({ onOpenAddClient }) {
   if (clientFilter === 'overdue') list = list.filter(c => clientIsOverdue(c.id));
   if (clientFilter === 'vip') list = list.filter(c => c.category === 'VIP' || c.category === 'Ulgurji (Optom)');
   if (clientFilter === 'clean') list = list.filter(c => clientBalance(c.id) === 0);
+  if (clientFilter === 'blacklist') list = list.filter(c => c.isBlacklisted);
 
   list.sort((a, b) => clientBalance(b.id) - clientBalance(a.id));
 
@@ -79,6 +80,13 @@ export default function Clients({ onOpenAddClient }) {
           >
             Toza hisoblar
           </button>
+          <button
+            className={`chip ${clientFilter === 'blacklist' ? 'active' : ''}`}
+            onClick={() => setClientFilter('blacklist')}
+            style={{ color: clientFilter === 'blacklist' ? '#fff' : 'var(--rust)' }}
+          >
+            ⛔ Qora ro'yxat ({db.clients.filter(c => c.isBlacklisted).length})
+          </button>
         </div>
 
         <button className="btn btn-outline btn-sm" onClick={handleExportAllClients}>
@@ -118,6 +126,11 @@ export default function Clients({ onOpenAddClient }) {
                       {c.category && (
                         <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'var(--surface-2)', color: 'var(--gold)', fontWeight: 700 }}>
                           {c.category}
+                        </span>
+                      )}
+                      {c.isBlacklisted && (
+                        <span style={{ fontSize: '10px', padding: '2px 6px', borderRadius: '4px', background: 'rgba(217, 83, 79, 0.15)', color: 'var(--rust)', fontWeight: 700, marginLeft: '4px' }}>
+                          ⛔ Qora ro'yxat
                         </span>
                       )}
                     </div>

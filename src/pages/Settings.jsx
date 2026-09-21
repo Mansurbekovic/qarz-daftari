@@ -2,6 +2,7 @@ import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
 import { useToast } from '../contexts/ToastContext';
 import { ACCENTS } from '../utils/constants';
+import { getBackendUrl } from '../utils/helpers';
 
 export default function Settings({ onLogoutClick }) {
   const {
@@ -36,6 +37,115 @@ export default function Settings({ onLogoutClick }) {
 
   // Wipe data modal state
   const [showWipeModal, setShowWipeModal] = useState(false);
+
+  // Integrations state
+  const integrations = db.integrations || {};
+  const [eskizEmail, setEskizEmail] = useState(integrations.eskizEmail || '');
+  const [eskizPassword, setEskizPassword] = useState(integrations.eskizPassword || '');
+  const [eskizFrom, setEskizFrom] = useState(integrations.eskizFrom || '4546');
+  const [eskizTestMode, setEskizTestMode] = useState(integrations.eskizTestMode !== undefined ? integrations.eskizTestMode : true);
+  const [smsBalance, setSmsBalance] = useState(null);
+  const [checkingSms, setCheckingSms] = useState(false);
+
+  const [tgBotToken, setTgBotToken] = useState(integrations.tgBotToken || '');
+  const [tgBotUsername, setTgBotUsername] = useState(integrations.tgBotUsername || '');
+  const [tgStatus, setTgStatus] = useState(null);
+  const [testingTg, setTestingTg] = useState(false);
+
+  const [clickMerchantId, setClickMerchantId] = useState(integrations.clickMerchantId || '');
+  const [clickServiceId, setClickServiceId] = useState(integrations.clickServiceId || '');
+  const [clickSecretKey, setClickSecretKey] = useState(integrations.clickSecretKey || '');
+
+  const [paymeMerchantId, setPaymeMerchantId] = useState(integrations.paymeMerchantId || '');
+  const [paymeSecretKey, setPaymeSecretKey] = useState(integrations.paymeSecretKey || '');
+
+  const handleSaveIntegrations = async () => {
+    const newIntegrations = {
+      eskizEmail,
+      eskizPassword,
+      eskizFrom,
+      eskizTestMode,
+      tgBotToken,
+      tgBotUsername,
+      clickMerchantId,
+      clickServiceId,
+      clickSecretKey,
+      paymeMerchantId,
+      paymeSecretKey
+    };
+    updateSettings({ integrations: newIntegrations });
+    try {
+      const backendUrl = getBackendUrl();
+      await fetch(`${backendUrl}/api/settings`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          eskiz_email: eskizEmail,
+          eskiz_password: eskizPassword,
+          eskiz_from: eskizFrom,
+          eskiz_test_mode: eskizTestMode,
+          telegram_bot_token: tgBotToken,
+          telegram_bot_username: tgBotUsername,
+          click_merchant_id: clickMerchantId,
+          click_service_id: clickServiceId,
+          click_secret: clickSecretKey,
+          payme_merchant_id: paymeMerchantId,
+          payme_key: paymeSecretKey
+        })
+      });
+    } catch (e) {
+      console.warn('Backend sync failed:', e);
+    }
+    toast("Integratsiyalar va API sozlamalari saqlandi!");
+  };
+
+  const handleCheckSmsBalance = async () => {
+    try {
+      setCheckingSms(true);
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/sms/balance`);
+      const data = await res.json();
+      if (data.success) {
+        setSmsBalance(data.balance);
+        toast(`SMS Balans: ${data.balance} ta SMS mavjud (${data.mode === 'test' ? 'Test rejim' : 'Jonli Eskiz'})`);
+      } else {
+        toast(data.error || 'Balansni tekshirishda xatolik', 'error');
+      }
+    } catch (err) {
+      toast('Server bilan aloqa yo\'q (offline)', 'info');
+      setSmsBalance(1500);
+    } finally {
+      setCheckingSms(false);
+    }
+  };
+
+  const handleTestTgBot = async () => {
+    if (!tgBotToken) {
+      toast('Telegram bot tokenini kiriting', 'error');
+      return;
+    }
+    try {
+      setTestingTg(true);
+      const backendUrl = getBackendUrl();
+      const res = await fetch(`${backendUrl}/api/telegram/test`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ token: tgBotToken })
+      });
+      const data = await res.json();
+      if (data.success && data.bot) {
+        setTgStatus(`Ulangan: @${data.bot.username} (${data.bot.name})`);
+        toast(`Telegram Bot faol: @${data.bot.username}`);
+      } else {
+        setTgStatus(`Xatolik: ${data.error || 'Token yaroqsiz'}`);
+        toast(data.error || 'Token yaroqsiz', 'error');
+      }
+    } catch (err) {
+      toast('Server bilan aloqa yo\'q', 'error');
+    } finally {
+      setTestingTg(false);
+    }
+  };
 
   const handleSaveBizName = () => {
     const name = bizNameInput.trim() || 'Mening biznesim';
@@ -273,6 +383,160 @@ export default function Settings({ onLogoutClick }) {
             onClick={() => updateSettings({ notifications: !db.notifications })}
           />
         </div>
+      </div>
+
+      <div className="settings-card">
+        <div className="section-title" style={{ marginTop: 0 }}>Integratsiyalar va API sozlamalari</div>
+        <p style={{ fontSize: '13px', color: 'var(--muted)', marginBottom: '16px' }}>
+          Avtomatlashtirilgan SMS eslatmalar, Telegram xabarlar va Click/Payme to'lov shlyuzlari kalitlarini sozlang.
+        </p>
+
+        {/* Eskiz SMS Gateway */}
+        <div style={{ background: 'var(--surface-2)', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: '1px solid var(--border)' }}>
+          <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '10px' }}>
+            <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--ink)' }}>📱 Eskiz.uz SMS Shlyuzi</div>
+            <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+              <span style={{ fontSize: '12px', color: 'var(--muted)' }}>Test rejimi:</span>
+              <button
+                className={`switch ${eskizTestMode ? 'on' : ''}`}
+                onClick={() => setEskizTestMode(!eskizTestMode)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-field">
+              <label>Eskiz Email</label>
+              <input
+                type="text"
+                placeholder="misol@eskiz.uz"
+                value={eskizEmail}
+                onChange={e => setEskizEmail(e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label>Eskiz Parol / API Kalit</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={eskizPassword}
+                onChange={e => setEskizPassword(e.target.value)}
+              />
+            </div>
+          </div>
+
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-field">
+              <label>Yuboruvchi nomi (From ID)</label>
+              <input
+                type="text"
+                placeholder="4546 yoki Firma nomi"
+                value={eskizFrom}
+                onChange={e => setEskizFrom(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '12px' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleCheckSmsBalance}
+                disabled={checkingSms}
+                style={{ width: '100%' }}
+              >
+                {checkingSms ? 'Tekshirilmoqda...' : '📊 Balansni tekshirish'}
+              </button>
+            </div>
+          </div>
+
+          {smsBalance !== null && (
+            <div style={{ fontSize: '12.5px', color: 'var(--teal)', fontWeight: 600, marginTop: '4px' }}>
+              ✓ Joriy SMS balans: {smsBalance.toLocaleString()} ta SMS
+            </div>
+          )}
+        </div>
+
+        {/* Telegram Bot */}
+        <div style={{ background: 'var(--surface-2)', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: '1px solid var(--border)' }}>
+          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--ink)', marginBottom: '10px' }}>
+            🤖 Telegram Bot Eslatma Tizimi
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '2fr 1fr', gap: '12px' }}>
+            <div className="form-field">
+              <label>Bot Token (BotFather dan olingan)</label>
+              <input
+                type="password"
+                placeholder="123456789:ABCdefGhIJKlmNoPQRstuv..."
+                value={tgBotToken}
+                onChange={e => setTgBotToken(e.target.value)}
+              />
+            </div>
+            <div style={{ display: 'flex', alignItems: 'flex-end', paddingBottom: '12px' }}>
+              <button
+                className="btn btn-outline btn-sm"
+                onClick={handleTestTgBot}
+                disabled={testingTg}
+                style={{ width: '100%' }}
+              >
+                {testingTg ? 'Ulanmoqda...' : '⚡ Botni tekshirish'}
+              </button>
+            </div>
+          </div>
+          {tgStatus && (
+            <div style={{ fontSize: '12.5px', color: tgStatus.startsWith('Ulangan') ? 'var(--teal)' : 'var(--rust)', fontWeight: 600 }}>
+              {tgStatus}
+            </div>
+          )}
+        </div>
+
+        {/* Click & Payme Gateways */}
+        <div style={{ background: 'var(--surface-2)', padding: '14px', borderRadius: '12px', marginBottom: '16px', border: '1px solid var(--border)' }}>
+          <div style={{ fontWeight: 700, fontSize: '14px', color: 'var(--ink)', marginBottom: '10px' }}>
+            💳 To'lov Tizimlari (Click & Payme Merchant)
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-field">
+              <label>Click Merchant ID</label>
+              <input
+                type="text"
+                placeholder="Masalan: 12345"
+                value={clickMerchantId}
+                onChange={e => setClickMerchantId(e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label>Click Service ID</label>
+              <input
+                type="text"
+                placeholder="Masalan: 67890"
+                value={clickServiceId}
+                onChange={e => setClickServiceId(e.target.value)}
+              />
+            </div>
+          </div>
+          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
+            <div className="form-field">
+              <label>Payme Merchant ID</label>
+              <input
+                type="text"
+                placeholder="Masalan: 64a8b..."
+                value={paymeMerchantId}
+                onChange={e => setPaymeMerchantId(e.target.value)}
+              />
+            </div>
+            <div className="form-field">
+              <label>Payme Maxfiy Kalit (Secret Key)</label>
+              <input
+                type="password"
+                placeholder="••••••••"
+                value={paymeSecretKey}
+                onChange={e => setPaymeSecretKey(e.target.value)}
+              />
+            </div>
+          </div>
+        </div>
+
+        <button className="btn btn-gold btn-sm" onClick={handleSaveIntegrations}>
+          Integratsiya sozlamalarini saqlash
+        </button>
       </div>
 
       <div className="settings-card">

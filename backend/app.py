@@ -1,76 +1,37 @@
 from flask import Flask, jsonify, request
 from flask_cors import CORS
 import os
-import json
 import uuid
 from datetime import datetime
+
+from db import (
+    get_all_users,
+    get_user_by_username,
+    upsert_user,
+    delete_user as db_delete_user,
+    get_user_db_data,
+    save_user_db_data,
+    save_payment_intent,
+    confirm_payment_intent,
+    get_all_payments,
+    get_settings,
+    save_settings,
+    get_sms_logs,
+    get_db_stats,
+    vacuum_database,
+    check_database_integrity,
+    create_database_backup,
+    get_audit_logs,
+    log_audit_event
+)
+from sms_service import sms_service
+from telegram_bot import telegram_service
 
 app = Flask(__name__)
 CORS(app, resources={r"/*": {"origins": "*"}})
 
-DATA_FILE = os.path.join(os.path.dirname(__file__), 'data.json')
 
-
-def default_backend_data():
-    return {
-        "users": [
-            {
-                "id": "1",
-                "username": "admin",
-                "businessName": "Tizim Administratori",
-                "passHash": "c7ad44cbad762a5da0a452f9e854fdc1e0e7a52a38015f23f3eab1d80b931dd472634dfac71cd34ebc35d16ab7fb8a90c81f975113d6c7538dc69dd8de9077ec",
-                "role": "admin",
-                "status": "active",
-                "createdAt": datetime.utcnow().isoformat(),
-            }
-        ],
-        "clients": [],
-        "transactions": [],
-        "cards": [],
-        "user_dbs": {},
-        "payments": [],
-    }
-
-
-def load_data():
-    if not os.path.exists(DATA_FILE):
-        data = default_backend_data()
-        save_data(data)
-        return data
-    try:
-        with open(DATA_FILE, 'r', encoding='utf-8') as f:
-            content = f.read().strip()
-            if not content:
-                return default_backend_data()
-            data = json.loads(content)
-            if not isinstance(data, dict):
-                return default_backend_data()
-            data.setdefault("users", [])
-            data.setdefault("clients", [])
-            data.setdefault("transactions", [])
-            data.setdefault("cards", [])
-            data.setdefault("user_dbs", {})
-            data.setdefault("payments", [])
-            return data
-    except Exception:
-        return default_backend_data()
-
-
-def save_data(data):
-    try:
-        os.makedirs(os.path.dirname(DATA_FILE), exist_ok=True)
-        temp_file = DATA_FILE + '.tmp'
-        with open(temp_file, 'w', encoding='utf-8') as f:
-            json.dump(data, f, ensure_ascii=False, indent=2)
-        if os.path.exists(DATA_FILE):
-            os.replace(temp_file, DATA_FILE)
-        else:
-            os.rename(temp_file, DATA_FILE)
-    except Exception as e:
-        print(f"Error saving data: {e}")
-
-
-def create_payment_intent(amount, currency='UZS', card_token=None):
+def create_payment_intent_obj(amount, currency='UZS', card_token=None):
     return {
         "id": f"pi_{uuid.uuid4().hex[:12]}",
         "amount": float(amount),
@@ -83,204 +44,122 @@ def create_payment_intent(amount, currency='UZS', card_token=None):
 
 @app.get('/health')
 def health():
-    return jsonify({"status": "ok", "time": datetime.utcnow().isoformat()})
+    stats = get_db_stats()
+    return jsonify({
+        "status": "ok",
+        "version": "v3.5 Enterprise Pro",
+        "storage": "SQLite ACID WAL",
+        "time": datetime.utcnow().isoformat(),
+        "stats": stats
+    })
 
+
+# ---------------- USER MANAGEMENT ---------------- #
 
 @app.get('/api/users')
 def get_users():
-    data = load_data()
-    return jsonify(data.get("users", []))
+    users = get_all_users()
+    return jsonify(users)
 
 
 @app.post('/api/users')
 def create_user():
     payload = request.get_json(silent=True) or {}
-    data = load_data()
     username = payload.get("username")
     if not username:
         return jsonify({"error": "username_required"}), 400
 
-    existing = next((u for u in data.get("users", []) if u.get("username") == username), None)
-    if existing:
-        existing.update({
-            "businessName": payload.get("businessName", existing.get("businessName")),
-            "role": payload.get("role", existing.get("role")),
-            "status": payload.get("status", existing.get("status")),
-            "passHash": payload.get("passHash", existing.get("passHash")),
-        })
-        user = existing
-    else:
-        user = {
-            "id": str(len(data["users"]) + 1),
-            "username": username,
-            "businessName": payload.get("businessName", "Mening biznesim"),
-            "passHash": payload.get("passHash", ""),
-            "role": payload.get("role", "user"),
-            "status": payload.get("status", "active"),
-            "createdAt": datetime.utcnow().isoformat(),
-        }
-        data["users"].append(user)
-
-    save_data(data)
-    return jsonify(user), 201
+    user = upsert_user(
+        username=username,
+        business_name=payload.get("businessName"),
+        pass_hash=payload.get("passHash"),
+        role=payload.get("role", "user"),
+        status=payload.get("status", "active")
+    )
+    safe = dict(user)
+    safe.pop("passHash", None)
+    return jsonify(safe), 201
 
 
 @app.put('/api/users/<username>')
-def update_user(username):
+def update_user_route(username):
     payload = request.get_json(silent=True) or {}
-    data = load_data()
-    user = next((u for u in data.get("users", []) if u.get("username") == username), None)
-    if not user:
+    existing = get_user_by_username(username)
+    if not existing:
         return jsonify({"error": "user_not_found"}), 404
 
-    if "businessName" in payload:
-        user["businessName"] = payload["businessName"]
-    if "status" in payload:
-        user["status"] = payload["status"]
-    if "role" in payload:
-        user["role"] = payload["role"]
-    if "passHash" in payload:
-        user["passHash"] = payload["passHash"]
-
-    save_data(data)
-    return jsonify(user)
+    user = upsert_user(
+        username=username,
+        business_name=payload.get("businessName"),
+        pass_hash=payload.get("passHash"),
+        role=payload.get("role"),
+        status=payload.get("status")
+    )
+    safe = dict(user)
+    safe.pop("passHash", None)
+    return jsonify(safe)
 
 
 @app.delete('/api/users/<username>')
-def delete_user(username):
+def delete_user_route(username):
     if username == 'admin':
         return jsonify({"error": "cannot_delete_admin"}), 400
-
-    data = load_data()
-    data["users"] = [u for u in data.get("users", []) if u.get("username") != username]
-    if "user_dbs" in data and username in data["user_dbs"]:
-        del data["user_dbs"][username]
-
-    save_data(data)
+    db_delete_user(username)
     return jsonify({"status": "deleted", "username": username})
 
 
 @app.post('/api/users/sync')
-def sync_users():
+def sync_users_route():
     payload = request.get_json(silent=True) or []
     if not isinstance(payload, list):
         return jsonify({"error": "invalid_payload"}), 400
 
-    data = load_data()
-    current_users = data.get("users", [])
-
+    count = 0
     for u in payload:
         uname = u.get("username")
         if not uname:
             continue
-        ex = next((item for item in current_users if item.get("username") == uname), None)
-        if ex:
-            ex.update({
-                "businessName": u.get("businessName", ex.get("businessName")),
-                "role": u.get("role", ex.get("role")),
-                "status": u.get("status", ex.get("status")),
-                "passHash": u.get("passHash", ex.get("passHash")),
-            })
-        else:
-            current_users.append({
-                "id": str(len(current_users) + 1),
-                "username": uname,
-                "businessName": u.get("businessName", "Mening biznesim"),
-                "passHash": u.get("passHash", ""),
-                "role": u.get("role", "user"),
-                "status": u.get("status", "active"),
-                "createdAt": u.get("createdAt", datetime.utcnow().isoformat()),
-            })
+        upsert_user(
+            username=uname,
+            business_name=u.get("businessName"),
+            pass_hash=u.get("passHash"),
+            role=u.get("role", "user"),
+            status=u.get("status", "active")
+        )
+        count += 1
 
-    data["users"] = current_users
-    save_data(data)
-    return jsonify(current_users)
+    return jsonify({"status": "synced", "count": count})
 
 
 @app.get('/api/users/<username>/db')
-def get_user_db(username):
-    data = load_data()
-    user_dbs = data.get("user_dbs", {})
-    return jsonify(user_dbs.get(username, {}))
+def get_user_db_route(username):
+    data = get_user_db_data(username)
+    return jsonify(data)
 
 
 @app.post('/api/users/<username>/db')
-def save_user_db(username):
+def save_user_db_route(username):
     payload = request.get_json(silent=True) or {}
-    data = load_data()
-    data.setdefault("user_dbs", {})[username] = payload
-    save_data(data)
+    save_user_db_data(username, payload)
     return jsonify({"status": "saved", "username": username})
 
 
-@app.get('/api/clients')
-def get_clients():
-    data = load_data()
-    return jsonify(data.get("clients", []))
+@app.get('/api/users/<username>/details')
+def get_user_details(username):
+    user = get_user_by_username(username)
+    if not user:
+        return jsonify({
+            "username": username,
+            "businessName": "Mening biznesim",
+            "role": "user",
+            "status": "active"
+        })
+    safe = dict(user)
+    safe.pop("passHash", None)
+    return jsonify(safe)
 
 
-@app.post('/api/clients')
-def create_client():
-    payload = request.get_json(silent=True) or {}
-    data = load_data()
-    client = {
-        "id": str(len(data["clients"]) + 1),
-        "name": payload.get("name"),
-        "relation": payload.get("relation", "owed_to_me"),
-        "createdAt": datetime.utcnow().isoformat(),
-    }
-    data["clients"].append(client)
-    save_data(data)
-    return jsonify(client), 201
-
-
-@app.get('/api/transactions')
-def get_transactions():
-    data = load_data()
-    return jsonify(data.get("transactions", []))
-
-
-@app.post('/api/transactions')
-def create_transaction():
-    payload = request.get_json(silent=True) or {}
-    data = load_data()
-    tx = {
-        "id": str(len(data["transactions"]) + 1),
-        "clientId": payload.get("clientId"),
-        "type": payload.get("type", "debt"),
-        "amount": payload.get("amount", 0),
-        "date": payload.get("date", datetime.utcnow().date().isoformat()),
-        "note": payload.get("note", ""),
-        "cardId": payload.get("cardId"),
-    }
-    data["transactions"].append(tx)
-    save_data(data)
-    return jsonify(tx), 201
-
-
-@app.get('/api/cards')
-def get_cards():
-    data = load_data()
-    return jsonify(data.get("cards", []))
-
-
-@app.post('/api/cards')
-def create_card():
-    payload = request.get_json(silent=True) or {}
-    data = load_data()
-    card = {
-        "id": str(len(data["cards"]) + 1),
-        "bank": payload.get("bank", "Boshqa"),
-        "type": payload.get("type", "virtual"),
-        "holder": payload.get("holder", "Mening kartam"),
-        "balance": payload.get("balance", 0),
-        "frozen": payload.get("frozen", False),
-        "token": payload.get("token") or f"tok_{uuid.uuid4().hex[:10]}",
-    }
-    data["cards"].append(card)
-    save_data(data)
-    return jsonify(card), 201
-
+# ---------------- PAYMENTS & MERCHANT GATEWAYS ---------------- #
 
 @app.post('/api/payments/intent')
 def create_payment_intent_endpoint():
@@ -288,33 +167,29 @@ def create_payment_intent_endpoint():
     amount = payload.get('amount', 0)
     card_token = payload.get('cardToken')
     provider = payload.get('provider', 'card')
-    intent = create_payment_intent(amount, payload.get('currency', 'UZS'), card_token)
+    intent = create_payment_intent_obj(amount, payload.get('currency', 'UZS'), card_token)
     intent['provider'] = provider
     intent['merchant'] = payload.get('merchant', 'Qarz Daftari Services')
-    data = load_data()
-    data.setdefault('payments', []).append(intent)
-    save_data(data)
+    save_payment_intent(intent)
     return jsonify(intent), 201
 
 
 @app.post('/api/payments/confirm')
 def confirm_payment():
     payload = request.get_json(silent=True) or {}
-    data = load_data()
     intent_id = payload.get('intentId')
-    payment = None
-    for item in data.get('payments', []):
-        if item.get('id') == intent_id:
-            payment = item
-            break
+    if not intent_id:
+        return jsonify({"error": "intent_id_required"}), 400
 
-    if not payment:
+    updated = confirm_payment_intent(intent_id)
+    if not updated:
         return jsonify({"error": "payment_not_found"}), 404
+    return jsonify(updated)
 
-    payment['status'] = 'succeeded'
-    payment['confirmedAt'] = datetime.utcnow().isoformat()
-    save_data(data)
-    return jsonify(payment)
+
+@app.get('/api/payments')
+def list_payments():
+    return jsonify(get_all_payments())
 
 
 @app.post('/api/payments/payme')
@@ -362,24 +237,178 @@ def paynet_callback():
     })
 
 
-@app.get('/api/users/<username>/details')
-def get_user_details(username):
-    data = load_data()
-    user = next((u for u in data.get("users", []) if u.get("username") == username), None)
-    if not user:
-        return jsonify({
-            "username": username,
-            "businessName": "Mening biznesim",
-            "role": "user",
-            "status": "active",
-            "clients": [],
-            "cards": [],
-            "transactions": []
-        })
-    return jsonify(user)
+# ---------------- SYSTEM SETTINGS & CREDENTIALS ---------------- #
+
+@app.get('/api/settings')
+def get_system_settings():
+    s = get_settings()
+    # Mask secret keys for safe frontend viewing
+    safe_settings = dict(s)
+    if safe_settings.get("eskiz_password"):
+        safe_settings["eskiz_password_masked"] = "••••••••"
+    if safe_settings.get("telegram_bot_token"):
+        tok = safe_settings["telegram_bot_token"]
+        safe_settings["telegram_bot_token_masked"] = tok[:6] + "••••••••" if len(tok) > 10 else "••••••••"
+    if safe_settings.get("click_secret"):
+        safe_settings["click_secret_masked"] = "••••••••"
+    if safe_settings.get("payme_key"):
+        safe_settings["payme_key_masked"] = "••••••••"
+    return jsonify(safe_settings)
+
+
+@app.post('/api/settings')
+def save_system_settings():
+    payload = request.get_json(silent=True) or {}
+    save_settings(payload)
+    return jsonify({"status": "saved", "settings": payload})
+
+
+# ---------------- SMS GATEWAY (ESKIZ / PLAYMOBILE) ---------------- #
+
+@app.post('/api/sms/send')
+def send_sms_endpoint():
+    payload = request.get_json(silent=True) or {}
+    phone = payload.get("phone")
+    message = payload.get("message")
+    if not phone or not message:
+        return jsonify({"error": "phone_and_message_required"}), 400
+
+    res = sms_service.send_sms(phone, message)
+    return jsonify(res), (200 if res.get("success") else 400)
+
+
+@app.get('/api/sms/balance')
+def get_sms_balance_endpoint():
+    res = sms_service.get_balance()
+    return jsonify(res)
+
+
+@app.get('/api/sms/logs')
+def get_sms_logs_endpoint():
+    limit = int(request.args.get("limit", 50))
+    logs = get_sms_logs(limit)
+    return jsonify(logs)
+
+
+# ---------------- TELEGRAM BOT & REMINDERS ---------------- #
+
+@app.post('/api/telegram/test')
+def test_telegram_endpoint():
+    payload = request.get_json(silent=True) or {}
+    token = payload.get("token")
+    res = telegram_service.test_bot(token)
+    return jsonify(res)
+
+
+@app.post('/api/telegram/send')
+def send_telegram_endpoint():
+    payload = request.get_json(silent=True) or {}
+    chat_id = payload.get("chatId")
+    text = payload.get("text")
+    if not chat_id or not text:
+        return jsonify({"error": "chatId_and_text_required"}), 400
+    res = telegram_service.send_message(chat_id, text)
+    return jsonify(res)
+
+
+@app.post('/api/telegram/reminder')
+def send_telegram_reminder_endpoint():
+    payload = request.get_json(silent=True) or {}
+    chat_id = payload.get("chatId")
+    client_name = payload.get("clientName", "Hurmatli Mijoz")
+    amount = float(payload.get("amount", 0))
+    currency = payload.get("currency", "so'm")
+    due_date = payload.get("dueDate")
+    business_name = payload.get("businessName", "Qarz Daftari")
+
+    if not chat_id:
+        return jsonify({"error": "chatId_required"}), 400
+
+    res = telegram_service.send_debt_reminder(
+        chat_id=chat_id,
+        client_name=client_name,
+        amount=amount,
+        currency=currency,
+        due_date=due_date,
+        business_name=business_name
+    )
+    return jsonify(res)
+
+
+# ---------------- SYSTEM STATS & ADMIN OPS ---------------- #
+
+@app.get('/api/system/stats')
+def system_stats():
+    stats = get_db_stats()
+    return jsonify(stats)
+
+
+@app.post('/api/admin/db/vacuum')
+def admin_db_vacuum():
+    res = vacuum_database()
+    log_audit_event("admin", "DATABASE_VACUUM", "SQLite database defragmented and compacted")
+    return jsonify(res)
+
+
+@app.get('/api/admin/db/integrity')
+def admin_db_integrity():
+    res = check_database_integrity()
+    return jsonify(res)
+
+
+@app.post('/api/admin/db/backup')
+def admin_db_backup():
+    res = create_database_backup()
+    if res.get("success"):
+        log_audit_event("admin", "DATABASE_BACKUP", f"Created backup: {res.get('backupFilename')}")
+    return jsonify(res)
+
+
+@app.get('/api/admin/audit-logs')
+def admin_audit_logs():
+    limit = int(request.args.get("limit", 100))
+    logs = get_audit_logs(limit)
+    return jsonify(logs)
+
+
+@app.post('/api/admin/audit-logs')
+def admin_create_audit_log():
+    payload = request.get_json(silent=True) or {}
+    username = payload.get("username", "admin")
+    action = payload.get("action", "CUSTOM_EVENT")
+    details = payload.get("details", "")
+    ip = request.remote_addr or "127.0.0.1"
+    log_id = log_audit_event(username, action, details, ip)
+    return jsonify({"success": True, "logId": log_id}), 201
+
+
+@app.get('/api/admin/broadcast')
+def admin_get_broadcast():
+    settings = get_settings()
+    return jsonify({
+        "message": settings.get("system_broadcast_message", ""),
+        "enabled": settings.get("system_broadcast_enabled", False),
+        "type": settings.get("system_broadcast_type", "info"),
+        "updatedAt": settings.get("system_broadcast_updated_at", "")
+    })
+
+
+@app.post('/api/admin/broadcast')
+def admin_set_broadcast():
+    payload = request.get_json(silent=True) or {}
+    save_settings({
+        "system_broadcast_message": payload.get("message", ""),
+        "system_broadcast_enabled": payload.get("enabled", False),
+        "system_broadcast_type": payload.get("type", "info"),
+        "system_broadcast_updated_at": datetime.utcnow().isoformat()
+    })
+    log_audit_event("admin", "UPDATE_BROADCAST", f"Broadcast banner updated: {payload.get('message', '')[:40]}")
+    return jsonify({"success": True, "saved": payload})
 
 
 if __name__ == '__main__':
     port = int(os.environ.get('PORT', 5000))
     debug = os.environ.get('FLASK_DEBUG', 'false').lower() in ('1', 'true', 'yes')
+    telegram_service.start_scheduler()
+    print(f"[*] Qarz Daftari Backend v3.5 Enterprise Pro running on http://0.0.0.0:{port} with SQLite ACID WAL")
     app.run(host='0.0.0.0', port=port, debug=debug)

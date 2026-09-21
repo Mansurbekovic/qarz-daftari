@@ -8,18 +8,53 @@ import LockScreen from './components/auth/LockScreen';
 // Layout Components
 import Sidebar from './components/layout/Sidebar';
 import Topbar from './components/layout/Topbar';
+import MobileNav from './components/layout/MobileNav';
 
-// Pages
-import Dashboard from './pages/Dashboard';
-import Clients from './pages/Clients';
-import ClientDetail from './pages/ClientDetail';
-import Transactions from './pages/Transactions';
-import Kassa from './pages/Kassa';
-import Warehouse from './pages/Warehouse';
-import Wallet from './pages/Wallet';
-import Stats from './pages/Stats';
-import Settings from './pages/Settings';
-import AdminPanel from './pages/admin/AdminPanel';
+// Pages (Code-split with React.lazy for high performance)
+const Dashboard = React.lazy(() => import('./pages/Dashboard'));
+const Clients = React.lazy(() => import('./pages/Clients'));
+const Messages = React.lazy(() => import('./pages/Messages'));
+const DebtRequests = React.lazy(() => import('./pages/DebtRequests'));
+const ClientDetail = React.lazy(() => import('./pages/ClientDetail'));
+const Transactions = React.lazy(() => import('./pages/Transactions'));
+const Kassa = React.lazy(() => import('./pages/Kassa'));
+const Warehouse = React.lazy(() => import('./pages/Warehouse'));
+const Suppliers = React.lazy(() => import('./pages/Suppliers'));
+const Invoices = React.lazy(() => import('./pages/Invoices'));
+const Branches = React.lazy(() => import('./pages/Branches'));
+const Employees = React.lazy(() => import('./pages/Employees'));
+const Reminders = React.lazy(() => import('./pages/Reminders'));
+const Reports = React.lazy(() => import('./pages/Reports'));
+const Subscriptions = React.lazy(() => import('./pages/Subscriptions'));
+const ClientPortal = React.lazy(() => import('./pages/ClientPortal'));
+const Wallet = React.lazy(() => import('./pages/Wallet'));
+const Stats = React.lazy(() => import('./pages/Stats'));
+const Settings = React.lazy(() => import('./pages/Settings'));
+const AdminPanel = React.lazy(() => import('./pages/admin/AdminPanel'));
+
+function PageLoader() {
+  return (
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      justifyContent: 'center',
+      minHeight: '400px',
+      color: 'var(--muted)',
+      flexDirection: 'column',
+      gap: '12px'
+    }}>
+      <div style={{
+        width: '36px',
+        height: '36px',
+        borderRadius: '50%',
+        border: '3px solid rgba(169, 130, 31, 0.2)',
+        borderTopColor: 'var(--primary)',
+        animation: 'spin 0.8s linear infinite'
+      }} />
+      <div style={{ fontSize: '13px', fontWeight: 600, letterSpacing: '0.02em' }}>Sahifa yuklanmoqda...</div>
+    </div>
+  );
+}
 
 // Modals
 import ClientModal from './components/modals/ClientModal';
@@ -37,6 +72,7 @@ export default function App() {
   const [txModalDefaultType, setTxModalDefaultType] = useState('debt');
 
   const [showLogoutModal, setShowLogoutModal] = useState(false);
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   if (!initialized || authState === 'loading') {
     return (
@@ -98,35 +134,57 @@ export default function App() {
 
   return (
     <div className="app-shell" id="app">
-      <Sidebar onLogoutClick={() => setShowLogoutModal(true)} />
+      <Sidebar
+        onLogoutClick={() => setShowLogoutModal(true)}
+        isOpenMobile={mobileMenuOpen}
+        onCloseMobile={() => setMobileMenuOpen(false)}
+      />
 
       <div className="main">
-        <Topbar onOpenAddClient={handleOpenAddClient} />
+        <Topbar
+          onOpenAddClient={handleOpenAddClient}
+          onOpenMenu={() => setMobileMenuOpen(true)}
+        />
 
         <main className="page">
-          {currentPage === 'dashboard' && (
-            <Dashboard onOpenAddClient={handleOpenAddClient} />
-          )}
-          {currentPage === 'clients' && (
-            <Clients onOpenAddClient={handleOpenAddClient} />
-          )}
-          {currentPage === 'clientDetail' && (
-            <ClientDetail
-              onOpenTxModal={handleOpenTxModal}
-              onOpenEditClient={handleOpenEditClient}
-            />
-          )}
-          {currentPage === 'warehouse' && <Warehouse />}
-          {currentPage === 'kassa' && <Kassa />}
-          {currentPage === 'transactions' && <Transactions />}
-          {currentPage === 'wallet' && <Wallet />}
-          {currentPage === 'stats' && <Stats />}
-          {currentPage === 'settings' && (
-            <Settings onLogoutClick={() => setShowLogoutModal(true)} />
-          )}
-          {currentPage === 'admin' && <AdminPanel />}
+          <React.Suspense fallback={<PageLoader />}>
+            {currentPage === 'dashboard' && (
+              <Dashboard onOpenAddClient={handleOpenAddClient} />
+            )}
+            {currentPage === 'clients' && (
+              <Clients onOpenAddClient={handleOpenAddClient} />
+            )}
+            {currentPage === 'messages' && <Messages />}
+            {currentPage === 'debtRequests' && <DebtRequests />}
+            {currentPage === 'clientDetail' && (
+              <ClientDetail
+                onOpenTxModal={handleOpenTxModal}
+                onOpenEditClient={handleOpenEditClient}
+              />
+            )}
+            {currentPage === 'warehouse' && <Warehouse />}
+            {currentPage === 'kassa' && <Kassa />}
+            {currentPage === 'suppliers' && <Suppliers />}
+            {currentPage === 'invoices' && <Invoices />}
+            {currentPage === 'branches' && <Branches />}
+            {currentPage === 'employees' && <Employees />}
+            {currentPage === 'reminders' && <Reminders />}
+            {currentPage === 'reports' && <Reports />}
+            {currentPage === 'subscriptions' && <Subscriptions />}
+            {currentPage === 'clientPortal' && <ClientPortal />}
+            {currentPage === 'transactions' && <Transactions />}
+            {currentPage === 'wallet' && <Wallet />}
+            {currentPage === 'stats' && <Stats />}
+            {currentPage === 'settings' && (
+              <Settings onLogoutClick={() => setShowLogoutModal(true)} />
+            )}
+            {currentPage === 'admin' && <AdminPanel />}
+          </React.Suspense>
         </main>
       </div>
+
+      {/* Mobile Touch-Friendly Bottom Navigation Bar */}
+      <MobileNav onOpenMenu={() => setMobileMenuOpen(true)} />
 
       {/* Global Client Modal */}
       {showClientModal && (

@@ -197,7 +197,8 @@ export function generateInstallmentPlan(totalAmount, months = 3, startDateStr = 
 
 // Calculate Client Trust / Reliability Score
 export function calculateClientScore(client, txs = []) {
-  if (!client) return { stars: 5, label: 'Yangi mijoz', color: 'teal' };
+  if (!client) return { stars: 5, points: 100, label: 'Yangi mijoz', color: 'teal', risk: 'low' };
+  if (client.isBlacklisted) return { stars: 0, points: 15, label: "Qora ro'yxatda (Ishonchsiz)", color: 'rust', risk: 'critical', isBlacklisted: true };
   const clientTxs = txs.filter(t => t.clientId === client.id);
   if (clientTxs.length === 0) return { stars: 5, label: 'Yangi mijoz', color: 'teal' };
 
@@ -208,16 +209,16 @@ export function calculateClientScore(client, txs = []) {
   const today = todayISO();
   const overdueTxs = debts.filter(t => t.dueDate && t.dueDate < today && (totalDebt - totalPaid) > 0);
 
-  if (overdueTxs.length > 2) {
-    return { stars: 1, label: 'Xavfli / Ko\'p kechiktiruvchi', color: 'rust' };
+  if (overdueTxs.length >= 2) {
+    return { stars: 1, points: 30, label: 'Xavfli / Ko\'p kechiktiruvchi', color: 'rust', risk: 'high' };
   }
   if (overdueTxs.length === 1) {
-    return { stars: 3, label: 'O\'rtacha ishonch', color: 'gold' };
+    return { stars: 3, points: 65, label: 'O\'rtacha ishonch', color: 'gold', risk: 'medium' };
   }
   if (totalPaid >= totalDebt * 0.7 && debts.length >= 2) {
-    return { stars: 5, label: 'A\'lo / Doimiy ishonchli', color: 'teal' };
+    return { stars: 5, points: 98, label: 'A\'lo / Doimiy ishonchli', color: 'teal', risk: 'low' };
   }
-  return { stars: 4, label: 'Yaxshi mijoz', color: 'teal' };
+  return { stars: 4, points: 85, label: 'Yaxshi mijoz', color: 'teal', risk: 'low' };
 }
 
 // Advanced Telegram Chek Link
@@ -306,6 +307,8 @@ export function getApiBase() {
   }
   return 'http://127.0.0.1:5000';
 }
+
+export const getBackendUrl = getApiBase;
 
 // Web Audio API Beep feedback for barcode and actions
 export function playBeep(type = 'success') {
@@ -413,4 +416,107 @@ export function generatePaymentLink(provider, cardOrPhone, amount, comment = 'Qa
     return `https://my.click.uz/services/p2p?card=${cleanNum}&amount=${amount || ''}&desc=${encodeURIComponent(comment)}`;
   }
   return `https://payme.uz`;
+}
+
+
+// Generate Electronic Invoice (Hisob-faktura) Number
+export function generateInvoiceNumber() {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(10000 + Math.random() * 90000);
+  return `INV-${year}-${rand}`;
+}
+
+// Generate Supply Order (Kirim hujjati) Number
+export function generateSupplyOrderNumber() {
+  const year = new Date().getFullYear();
+  const rand = Math.floor(1000 + Math.random() * 9000);
+  return `SUP-${year}-${rand}`;
+}
+
+// Format INN (Tax ID - 9 digits)
+export function formatINN(val) {
+  if (!val) return '';
+  return String(val).replace(/\D/g, '').slice(0, 9);
+}
+
+// Format MFO (Bank code - 5 digits)
+export function formatMFO(val) {
+  if (!val) return '';
+  return String(val).replace(/\D/g, '').slice(0, 5);
+}
+
+// Calculate Days Difference to Due Date (Negative = Overdue, Positive = Days Left)
+export function getDaysDifference(dueDate) {
+  if (!dueDate) return null;
+  const now = new Date();
+  now.setHours(0, 0, 0, 0);
+  const due = new Date(dueDate);
+  due.setHours(0, 0, 0, 0);
+  const diffTime = due.getTime() - now.getTime();
+  return Math.ceil(diffTime / (1000 * 60 * 60 * 24));
+}
+
+// Number to Uzbek Words (Yozma summa generatsiyasi)
+export function numberToUzbekWords(num) {
+  if (!num || isNaN(num) || num <= 0) return "nol so'm";
+
+  const ones = ['', 'bir', 'ikki', 'uch', "to'rt", 'besh', 'olti', 'yetti', 'sakkiz', "to'qqiz"];
+  const tens = ['', "o'n", 'yigirma', "o'ttiz", 'qirq', 'ellik', 'oltmish', 'yetmish', 'sakson', "to'qson"];
+  const scales = ['', 'ming', 'million', 'milliard', 'trillion'];
+
+  function convertHundreds(n) {
+    let result = '';
+    const h = Math.floor(n / 100);
+    const t = Math.floor((n % 100) / 10);
+    const o = n % 10;
+
+    if (h > 0) {
+      result += (h === 1 ? 'bir yuz ' : ones[h] + ' yuz ');
+    }
+    if (t > 0) {
+      result += tens[t] + ' ';
+    }
+    if (o > 0) {
+      result += ones[o] + ' ';
+    }
+    return result.trim();
+  }
+
+  const integerPart = Math.floor(num);
+  if (integerPart === 0) return "nol so'm";
+
+  let parts = [];
+  let temp = integerPart;
+  let scaleIndex = 0;
+
+  while (temp > 0) {
+    const chunk = temp % 1000;
+    if (chunk > 0) {
+      const chunkText = convertHundreds(chunk);
+      const scaleText = scales[scaleIndex];
+      parts.unshift((chunkText + (scaleText ? ' ' + scaleText : '')).trim());
+    }
+    temp = Math.floor(temp / 1000);
+    scaleIndex++;
+  }
+
+  const capitalized = parts.join(' ');
+  return capitalized.charAt(0).toUpperCase() + capitalized.slice(1) + " so'm";
+}
+
+// Calculate Line Items, Tax, and Discounts for Invoicing
+export function calculateInvoiceTotals(items = [], discountPercent = 0, vatPercent = 0) {
+  const subtotal = items.reduce((acc, it) => acc + ((Number(it.price) || 0) * (Number(it.quantity || it.qty || 0))), 0);
+  const discountAmount = (subtotal * (Number(discountPercent) || 0)) / 100;
+  const taxableAmount = Math.max(0, subtotal - discountAmount);
+  const vatAmount = (taxableAmount * (Number(vatPercent) || 0)) / 100;
+  const grandTotal = taxableAmount + vatAmount;
+
+  return {
+    subtotal,
+    discountAmount,
+    taxableAmount,
+    vatAmount,
+    grandTotal
+  };
 }

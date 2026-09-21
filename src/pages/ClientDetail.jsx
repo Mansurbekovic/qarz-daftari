@@ -9,6 +9,8 @@ import {
 import ReceiptModal from '../components/modals/ReceiptModal';
 import ContractModal from '../components/modals/ContractModal';
 import ShareModal from '../components/modals/ShareModal';
+import CollateralModal from '../components/modals/CollateralModal';
+import TilxatModal from '../components/modals/TilxatModal';
 
 export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
   const { db, currentClientId, navigate, clientBalance, clientTransactions, clientIsOverdue, deleteTransaction, deleteClient, updateDB } = useApp();
@@ -20,6 +22,8 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
   const [expandedTxId, setExpandedTxId] = useState(null);
   const [showContractModal, setShowContractModal] = useState(false);
   const [showShareModal, setShowShareModal] = useState(false);
+  const [showCollateralModal, setShowCollateralModal] = useState(false);
+  const [showTilxatModal, setShowTilxatModal] = useState(false);
 
   const c = db.clients.find(item => item.id === currentClientId);
 
@@ -91,6 +95,15 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
     toast('Mijoz hisoboti Excel (CSV) formatida yuklab olindi');
   };
 
+  const handleToggleBlacklist = () => {
+    const newState = !c.isBlacklisted;
+    updateDB(prev => ({
+      ...prev,
+      clients: prev.clients.map(item => item.id === c.id ? { ...item, isBlacklisted: newState } : item)
+    }));
+    toast(newState ? "Mijoz qora ro'yxatga kiritildi (Ishonchsiz)" : "Mijoz qora ro'yxatdan chiqarildi", newState ? 'warning' : 'success');
+  };
+
   // Mark an installment as paid
   const handleToggleInstallmentPaid = (txId, installmentId) => {
     updateDB(prev => {
@@ -145,6 +158,38 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
         </div>
       </div>
 
+      {/* Blacklist Warning Banner if client is flagged */}
+      {c.isBlacklisted && (
+        <div style={{
+          background: 'rgba(217, 83, 79, 0.12)',
+          border: '1px solid var(--rust)',
+          borderRadius: '12px',
+          padding: '12px 16px',
+          marginBottom: '16px',
+          display: 'flex',
+          alignItems: 'center',
+          justifyContent: 'space-between',
+          gap: '12px'
+        }}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+            <span style={{ fontSize: '22px' }}>⛔</span>
+            <div>
+              <b style={{ color: 'var(--rust)', fontSize: '14px' }}>OGOHLANTIRISH: Ushbu mijoz qora ro'yxatga kiritilgan!</b>
+              <div style={{ fontSize: '12px', color: 'var(--muted)' }}>
+                Kredit ishonchliligi past yoki muddati surunkali kechiktirilgan. Yangi nasiya berish tavsiya etilmaydi.
+              </div>
+            </div>
+          </div>
+          <button
+            className="btn btn-outline btn-sm"
+            onClick={handleToggleBlacklist}
+            style={{ borderColor: 'var(--rust)', color: 'var(--rust)', whiteSpace: 'nowrap' }}
+          >
+            Ro'yxatdan chiqarish
+          </button>
+        </div>
+      )}
+
       {/* Main Client Profile Header */}
       <div className="detail-head">
         <div className="detail-avatar">{initials(c.name)}</div>
@@ -156,8 +201,8 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
                 🏷️ {c.category}
               </span>
             )}
-            <span className={`badge ${score.color}`} title="Mijoz ishonchliligi">
-              {'⭐'.repeat(score.stars)} {score.label}
+            <span className={`badge ${score.color}`} title="Mijoz ishonchlilik indeksi">
+              {'⭐'.repeat(score.stars)} {score.label} ({score.points || 85}/100)
             </span>
           </div>
 
@@ -206,8 +251,16 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
           {iowe ? "+ Qarz qaytarish" : "+ To'lov qabul qilish"}
         </button>
 
-        <button className="btn btn-outline" onClick={() => setShowContractModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
-          <span>📑</span> Qarz Shartnomasi / Tilxat
+        <button className="btn btn-outline" onClick={() => setShowTilxatModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>📜</span> Rasmiy Tilxat (Print)
+        </button>
+
+        <button className="btn btn-outline" onClick={() => setShowCollateralModal(true)} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>🤝</span> Garov & Kafil
+        </button>
+
+        <button className="btn btn-outline" onClick={() => navigate('clientPortal')} style={{ display: 'flex', alignItems: 'center', gap: '6px' }}>
+          <span>🌐</span> Mijoz Portali
         </button>
 
         {!iowe && bal > 0 && (
@@ -217,6 +270,15 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
         )}
 
         <button
+          className={`btn btn-outline ${c.isBlacklisted ? 'btn-teal' : ''}`}
+          style={{ display: 'flex', alignItems: 'center', gap: '6px', color: c.isBlacklisted ? 'var(--teal)' : 'var(--rust)', borderColor: c.isBlacklisted ? 'var(--teal)' : 'var(--rust-soft)' }}
+          onClick={handleToggleBlacklist}
+        >
+          <span>{c.isBlacklisted ? '✓' : '⛔'}</span>
+          {c.isBlacklisted ? "Ishonchli ro'yxatga qaytarish" : "Qora ro'yxatga kiritish"}
+        </button>
+
+        <button
           className="btn btn-outline"
           style={{ color: 'var(--rust)', borderColor: 'var(--rust-soft)', marginLeft: 'auto' }}
           onClick={() => setShowDelClientModal(true)}
@@ -224,6 +286,28 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
           Mijozni o'chirish
         </button>
       </div>
+
+      {/* Collateral & Guarantor Info if present */}
+      {((db.collaterals || []).filter(col => col.clientId === c.id)).length > 0 && (
+        <div style={{ marginBottom: '24px' }}>
+          <div className="section-title">🤝 Biriktirilgan Garov (Zalog) va Kafillar</div>
+          <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(260px, 1fr))', gap: '12px' }}>
+            {(db.collaterals || []).filter(col => col.clientId === c.id).map(col => (
+              <div key={col.id} className="stat-card" style={{ padding: '14px', border: '1px solid var(--border)' }}>
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '8px' }}>
+                  <b style={{ fontSize: '14px' }}>{col.title}</b>
+                  <span className="badge-status gold" style={{ fontSize: '10px' }}>{col.type.toUpperCase()}</span>
+                </div>
+                <div style={{ fontSize: '12px', color: 'var(--muted)', lineHeight: '1.6' }}>
+                  <div>Bahosi: <b>{fmtMoney(col.estimatedValue, db.currency)}</b></div>
+                  <div>Saqlash joyi: {col.storageLocation}</div>
+                  {col.guarantorName && <div>Kafil: <b>{col.guarantorName}</b> ({col.guarantorPhone})</div>}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
 
       {/* Active Installment / Rastrochka Schedules */}
       {installmentTxs.length > 0 && (
@@ -456,6 +540,25 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
           client={c}
           balance={bal}
           onClose={() => setShowShareModal(false)}
+        />
+      )}
+
+      {/* Collateral Modal */}
+      {showCollateralModal && (
+        <CollateralModal
+          clientId={c.id}
+          onClose={() => setShowCollateralModal(false)}
+        />
+      )}
+
+      {/* Tilxat Modal */}
+      {showTilxatModal && (
+        <TilxatModal
+          client={c}
+          amount={bal > 0 ? bal : 0}
+          dueDate={txs[0]?.dueDate}
+          collateral={(db.collaterals || []).find(col => col.clientId === c.id)}
+          onClose={() => setShowTilxatModal(false)}
         />
       )}
     </div>
