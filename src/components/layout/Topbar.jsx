@@ -177,6 +177,7 @@ export default function Topbar({ onOpenAddClient, onOpenMenu }) {
 
       {/* Live USD Rate Indicator */}
       <div
+        className="topbar-rate-indicator desktop-only-flex"
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -197,7 +198,7 @@ export default function Topbar({ onOpenAddClient, onOpenMenu }) {
 
       {/* Active Branch Selector */}
       {branches.length > 1 && (
-        <div style={{ position: 'relative' }}>
+        <div className="topbar-branch-selector desktop-only" style={{ position: 'relative' }}>
           <button
             className="btn btn-sm btn-outline"
             style={{ display: 'flex', alignItems: 'center', gap: '6px', fontSize: '12px', padding: '6px 12px' }}
@@ -258,7 +259,7 @@ export default function Topbar({ onOpenAddClient, onOpenMenu }) {
         </div>
       )}
 
-      <span className="version-badge topbar-version">{APP_VERSION}</span>
+      <span className="version-badge topbar-version desktop-only">{APP_VERSION}</span>
 
       {/* Notification Bell */}
       <div style={{ position: 'relative' }}>
@@ -322,11 +323,11 @@ export default function Topbar({ onOpenAddClient, onOpenMenu }) {
         </svg>
       </button>
 
-      <button className="btn btn-gold" onClick={onOpenAddClient}>
+      <button className="btn btn-gold topbar-add-btn" onClick={onOpenAddClient}>
         <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4">
           <path d="M12 5v14M5 12h14" />
         </svg>
-        Mijoz qo'shish
+        <span className="topbar-add-text">Mijoz qo'shish</span>
       </button>
     </header>
   );
