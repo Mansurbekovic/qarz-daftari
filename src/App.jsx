@@ -184,7 +184,10 @@ export default function App() {
       </div>
 
       {/* Mobile Touch-Friendly Bottom Navigation Bar */}
-      <MobileNav onOpenMenu={() => setMobileMenuOpen(true)} />
+      <MobileNav
+        onOpenMenu={() => setMobileMenuOpen(true)}
+        onOpenAddClient={handleOpenAddClient}
+      />
 
       {/* Global Client Modal */}
       {showClientModal && (

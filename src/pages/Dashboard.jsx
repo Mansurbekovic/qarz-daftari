@@ -111,19 +111,19 @@ export default function Dashboard({ onOpenAddClient }) {
       </div>
 
       {/* Enterprise Quick Hub (5x Faster Navigation & Functions) */}
-      <div style={{ marginTop: '24px', marginBottom: '24px' }}>
-        <div className="section-title" style={{ marginBottom: '12px' }}>
+      <div style={{ marginTop: '20px', marginBottom: '20px' }}>
+        <div className="section-title" style={{ marginBottom: '10px' }}>
           ⚡ Tezkor Biznes Modullari
         </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
+        <div className="quick-hub-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
           <div
             className="settings-card"
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('suppliers')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏭</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Ta'minotchilar</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Optom kirim</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🏭</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Ta'minotchilar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Optom kirim</div>
           </div>
 
           <div
@@ -131,9 +131,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('invoices')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>📑</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>B2B Fakturalar</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Schet-faktura</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>📑</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Fakturalar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Schet-faktura</div>
           </div>
 
           <div
@@ -141,9 +141,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('branches')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>🏢</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Filiallar</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Do'konlar tarmog'i</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🏢</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Filiallar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Do'konlar tarmog'i</div>
           </div>
 
           <div
@@ -151,9 +151,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('employees')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>👥</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Xodimlar</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Oylik & Avans</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>👥</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Xodimlar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Oylik & Avans</div>
           </div>
 
           <div
@@ -161,9 +161,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('reminders')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>🔔</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Aqlli Eslatma</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>SMS & Telegram</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🔔</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Eslatmalar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>SMS & Telegram</div>
           </div>
 
           <div
@@ -171,9 +171,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('reports')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>📊</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Foyda-Zarar</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>P&L Analitika</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>📊</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Foyda-Zarar</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>P&L Analitika</div>
           </div>
 
           <div
@@ -181,9 +181,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('clientPortal')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>🌐</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>Mijoz Portali</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Ochiq to'lov</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🌐</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Mijoz Portali</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Ochiq to'lov</div>
           </div>
 
           <div
@@ -191,9 +191,9 @@ export default function Dashboard({ onOpenAddClient }) {
             style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
             onClick={() => navigate('subscriptions')}
           >
-            <div style={{ fontSize: '24px', marginBottom: '4px' }}>👑</div>
-            <div style={{ fontWeight: 700, fontSize: '12.5px' }}>PRO & SMS</div>
-            <div style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Tariflar do'koni</div>
+            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>👑</div>
+            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>PRO & SMS</div>
+            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Tariflar do'koni</div>
           </div>
         </div>
       </div>

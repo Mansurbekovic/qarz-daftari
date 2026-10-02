@@ -243,7 +243,7 @@ export default function ClientDetail({ onOpenTxModal, onOpenEditClient }) {
       </div>
 
       {/* Action Buttons Toolbar */}
-      <div style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap', alignItems: 'center' }}>
+      <div className="client-detail-actions" style={{ display: 'flex', gap: '10px', marginBottom: '22px', flexWrap: 'wrap', alignItems: 'center' }}>
         <button className="btn btn-danger" onClick={() => onOpenTxModal(c.id, 'debt')}>
           {iowe ? "+ Qarz oldim" : "+ Nasiya / Qarz berish"}
         </button>
