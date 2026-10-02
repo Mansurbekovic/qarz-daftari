@@ -1,6 +1,13 @@
+import sys
+import os
+
+# Ensure backend directory is in sys.path for Gunicorn/Render deployments
+CURRENT_DIR = os.path.dirname(os.path.abspath(__file__))
+if CURRENT_DIR not in sys.path:
+    sys.path.insert(0, CURRENT_DIR)
+
 from flask import Flask, jsonify, request
 from flask_cors import CORS
-import os
 import uuid
 from datetime import datetime
 
