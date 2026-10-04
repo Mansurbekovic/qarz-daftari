@@ -77,16 +77,9 @@ export default function Sidebar({ onLogoutClick, isOpenMobile, onCloseMobile }) 
       <div className="sidebar-foot">
         <div className="sidebar-user">
           <b>{currentUser || '—'}</b>
-          {isAdmin ? <span style={{ color: 'var(--gold)', fontWeight: 800 }}> [ADMIN]</span> : ' hisobingiz'}
+          <span> hisobi</span>
         </div>
-        <button className="nav-item" onClick={lockApp}>
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-            <rect x="4" y="10" width="16" height="10" rx="2" />
-            <path d="M8 10V7a4 4 0 0 1 8 0v3" />
-          </svg>
-          Qulflash
-        </button>
-        <button className="nav-item" onClick={onLogoutClick}>
+        <button className="nav-item" onClick={onLogoutClick} style={{ color: '#E04836' }}>
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
             <path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4" />
             <path d="M16 17l5-5-5-5" />

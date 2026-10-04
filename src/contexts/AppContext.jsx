@@ -366,30 +366,8 @@ export function AppProvider({ children }) {
     });
   }, [updateDB, applyAccent]);
 
-  // Auto Lock
-  const resetAutoLock = useCallback(() => {
-    clearTimeout(autoLockRef.current);
-    if (!db) return;
-    const mins = db.autoLockMinutes || 5;
-    autoLockRef.current = setTimeout(() => {
-      setUnlocked(false);
-      setAuthState('pin');
-      setPinMode('enter');
-      toast('Beri turgani uchun ilova qulflandi');
-    }, mins * 60 * 1000);
-  }, [db, toast]);
-
-  useEffect(() => {
-    if (!unlocked) return;
-    const handler = () => resetAutoLock();
-    const events = ['mousemove', 'keydown', 'click', 'touchstart'];
-    events.forEach(evt => document.addEventListener(evt, handler));
-    resetAutoLock();
-    return () => {
-      events.forEach(evt => document.removeEventListener(evt, handler));
-      clearTimeout(autoLockRef.current);
-    };
-  }, [unlocked, resetAutoLock]);
+  // Auto Lock disabled for simplicity
+  const resetAutoLock = useCallback(() => {}, []);
 
   // Navigation
   const navigate = useCallback((page, param = null) => {
@@ -467,105 +445,93 @@ export function AppProvider({ children }) {
   }, [db?.cards]);
 
   // Auth
-  const login = useCallback(async (username, password) => {
-    if (systemConfig.lockdown && username !== 'admin') {
-      addSecurityLog('LOCKDOWN_BLOCK', username, 'Favqulodda qulflash rejimida kirishga urinish', 'warning');
-      throw new Error('Tizim administrator tomonidan vaqtincha favqulodda qulflangan.');
-    }
+  const login = useCallback(async (identifier, password) => {
+    const norm = (identifier || '').trim().toLowerCase();
+    if (!norm || !password) throw new Error('Login va parolni kiriting.');
 
-    let acc = accounts.find(a => a.username === username);
+    let acc = accounts.find(a => (a.username && a.username.toLowerCase() === norm) || (a.email && a.email.toLowerCase() === norm));
     if (!acc) {
-      // Reload accounts from backend/storage to discover users created on other devices
       const freshAccounts = await loadAccountsFromStorage();
-      acc = freshAccounts.find(a => a.username === username);
+      acc = freshAccounts.find(a => (a.username && a.username.toLowerCase() === norm) || (a.email && a.email.toLowerCase() === norm));
     }
 
     if (!acc) {
-      addSecurityLog('FAILED_LOGIN', username, 'Topilmagan nom bilan kirishga urinish', 'warning');
       throw new Error('Bunday foydalanuvchi topilmadi.');
     }
     if (acc.status === 'banned') {
-      addSecurityLog('BANNED_LOGIN', username, 'Bloklangan foydalanuvchi kirishga urindi', 'danger');
-      throw new Error('Hisobingiz administrator tomonidan bloklangan!');
+      throw new Error('Hisobingiz bloklangan!');
     }
 
     const hash = await sha256(password);
     if (hash !== acc.passHash) {
-      addSecurityLog('WRONG_PASSWORD', username, 'Noto\'g\'ri parol kiritildi', 'warning');
       throw new Error('Parol noto\'g\'ri.');
     }
 
-    const data = await loadDBFromStorage(username);
-    setCurrentUser(username);
+    const data = await loadDBFromStorage(acc.username);
+    setCurrentUser(acc.username);
     setDb(data);
-    await saveSessionToStorage(username);
-    applyTheme(data.theme);
-    applyAccent(data.accent);
+    await saveSessionToStorage(acc.username);
+    applyTheme(data?.theme || 'light');
+    applyAccent(data?.accent || 'gold');
 
-    addSecurityLog('LOGIN_SUCCESS', username, 'Muvaffaqiyatli tizimga kirdi', 'info');
+    setUnlocked(true);
+    setAuthState('app');
+    setCurrentPage('dashboard');
+    toast(`Xush kelibsiz, ${acc.username}!`);
+  }, [accounts, loadAccountsFromStorage, loadDBFromStorage, saveSessionToStorage, applyTheme, applyAccent, toast]);
 
-    if (!data.pinHash) {
-      setAuthState('pin');
-      setPinMode('setup1');
-    } else {
-      setAuthState('pin');
-      setPinMode('enter');
+  const register = useCallback(async (username, email, password) => {
+    const u = (username || '').trim().toLowerCase().replace(/\s+/g, '');
+    const em = (email || '').trim().toLowerCase();
+    if (!u) throw new Error('Foydalanuvchi nomini kiriting.');
+    if (!password || password.length < 4) throw new Error('Parol kamida 4 belgidan iborat bo\'lsin.');
+
+    let freshAccounts = accounts;
+    if (freshAccounts.length === 0) {
+      freshAccounts = await loadAccountsFromStorage();
     }
-  }, [accounts, systemConfig, loadAccountsFromStorage, loadDBFromStorage, saveSessionToStorage, applyTheme, applyAccent, addSecurityLog]);
-
-  const register = useCallback(async (bizName, username, password) => {
-    if (systemConfig.lockdown) {
-      throw new Error('Tizim administrator tomonidan vaqtincha favqulodda qulflangan.');
+    if (freshAccounts.some(a => a.username.toLowerCase() === u)) {
+      throw new Error('Bu foydalanuvchi nomi band.');
     }
-    if (accounts.some(a => a.username === username)) throw new Error('Bu foydalanuvchi nomi band.');
-    
+
     const passHash = await sha256(password);
     const newAccount = {
-      username,
-      businessName: bizName,
+      username: u,
+      email: em,
+      businessName: u,
       passHash,
       role: 'user',
       status: 'active',
       createdAt: new Date().toISOString()
     };
-    const newAccounts = [...accounts, newAccount];
+    const newAccounts = [...freshAccounts, newAccount];
     setAccounts(newAccounts);
     await saveAccountsToStorage(newAccounts);
-    
-    // Immediately register user on backend for cross-device visibility
+
     try {
       await fetch(`${getApiBase()}/api/users`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(newAccount)
       });
-    } catch (e) { /* backend offline */ }
-    
-    const data = defaultDB();
-    data.businessName = bizName;
-    setCurrentUser(username);
-    setDb(data);
-
-    // Save DB immediately (no debounce) to ensure data persists
-    try {
-      await storage.set(dbKeyFor(username), JSON.stringify(data), false);
-      try {
-        await fetch(`${getApiBase()}/api/users/${username}/db`, {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify(data)
-        });
-      } catch (e) { /* ignore */ }
     } catch (e) { /* ignore */ }
 
-    await saveSessionToStorage(username);
+    const data = defaultDB();
+    data.businessName = u;
+    setCurrentUser(u);
+    setDb(data);
 
-    addSecurityLog('REGISTER_SUCCESS', username, 'Yangi hisob yaratildi', 'info');
+    try {
+      await storage.set(dbKeyFor(u), JSON.stringify(data), false);
+    } catch (e) { /* ignore */ }
 
-    toast('Hisob yaratildi. Endi PIN-kod o\'rnating.');
-    setAuthState('pin');
-    setPinMode('setup1');
-  }, [accounts, systemConfig, saveAccountsToStorage, saveSessionToStorage, toast, addSecurityLog]);
+    await saveSessionToStorage(u);
+
+    setUnlocked(true);
+    setAuthState('app');
+    setCurrentPage('dashboard');
+    toast('Hisobingiz yaratildi va tizimga kirdingiz!');
+  }, [accounts, loadAccountsFromStorage, saveAccountsToStorage, saveSessionToStorage, toast]);
 
   const logout = useCallback(async () => {
     if (currentUser) {
@@ -1519,13 +1485,8 @@ export function AppProvider({ children }) {
           setDb(data);
           applyTheme(data?.theme || 'light');
           applyAccent(data?.accent || 'gold');
-          if (!data?.pinHash) {
-            setAuthState('pin');
-            setPinMode('setup1');
-          } else {
-            setAuthState('pin');
-            setPinMode('enter');
-          }
+          setUnlocked(true);
+          setAuthState('app');
         } else {
           setAuthState('auth');
         }

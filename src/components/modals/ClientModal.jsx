@@ -1,158 +1,207 @@
 import React, { useState } from 'react';
 import { useApp } from '../../contexts/AppContext';
 import { useToast } from '../../contexts/ToastContext';
-import { CLIENT_CATEGORIES } from '../../utils/constants';
+import { todayISO } from '../../utils/helpers';
 
 export default function ClientModal({ clientId, onClose }) {
-  const { db, addClient, updateClient, navigate } = useApp();
+  const { db, addClient, updateClient, addTransaction, navigate } = useApp();
   const toast = useToast();
 
   const c = clientId ? db.clients.find(item => item.id === clientId) : null;
-  const [relation, setRelation] = useState(c ? c.relation : 'owed_to_me');
   const [name, setName] = useState(c ? c.name : '');
-  const [phone, setPhone] = useState(c ? c.phone || '' : '');
   const [address, setAddress] = useState(c ? c.address || '' : '');
+  const [phone, setPhone] = useState(c ? c.phone || '' : '');
+  const [initialDebt, setInitialDebt] = useState('');
+  const [relation, setRelation] = useState(c ? c.relation : 'owed_to_me');
   const [note, setNote] = useState(c ? c.note || '' : '');
-  const [category, setCategory] = useState(c?.category || 'Oddiy');
-  const [creditLimit, setCreditLimit] = useState(c?.creditLimit || '');
-  const [passport, setPassport] = useState(c?.passport || '');
 
   const handleSubmit = (e) => {
     e.preventDefault();
     const trimmedName = name.trim();
     if (!trimmedName) {
-      toast('Mijoz ismini kiriting', 'error');
+      toast('Ismni kiriting', 'error');
       return;
     }
 
-    const clientPayload = {
-      name: trimmedName,
-      phone: phone.trim(),
-      address: address.trim(),
-      note: note.trim(),
-      relation,
-      category,
-      creditLimit: creditLimit ? Number(creditLimit) : null,
-      passport: passport.trim(),
-    };
-
     if (c) {
-      updateClient(c.id, clientPayload);
-      toast("Mijoz ma'lumotlari muvaffaqiyatli yangilandi");
+      updateClient(c.id, {
+        name: trimmedName,
+        address: address.trim(),
+        phone: phone.trim(),
+        note: note.trim(),
+        relation,
+      });
+      toast("Ma'lumotlar yangilandi");
     } else {
-      addClient(clientPayload);
-      toast('Yangi mijoz qo\'shildi');
-      navigate('clients');
+      const newClientId = 'cl_' + Date.now().toString(36) + Math.random().toString(36).substr(2, 5);
+      addClient({
+        id: newClientId,
+        name: trimmedName,
+        address: address.trim(),
+        phone: phone.trim(),
+        note: note.trim(),
+        relation,
+      });
+
+      // Agar boshlang'ich qarz summasi kiritilgan bo'lsa, darhol tranzaksiya yozamiz
+      const debtAmount = Number(initialDebt);
+      if (debtAmount > 0) {
+        addTransaction({
+          clientId: newClientId,
+          type: 'debt',
+          amount: debtAmount,
+          date: todayISO(),
+          note: note.trim() || 'Dastlabki qarz',
+        });
+      }
+
+      toast('Yangi qarz yozildi');
+      navigate('dashboard');
     }
     onClose();
   };
 
   return (
     <div className="modal-backdrop" onClick={onClose}>
-      <div className="modal wide" onClick={e => e.stopPropagation()} style={{ maxWidth: '520px' }}>
+      <div className="modal" onClick={e => e.stopPropagation()} style={{ maxWidth: '440px' }}>
         <div className="modal-head">
-          <h3>{c ? 'Mijoz profilini tahrirlash' : 'Yangi mijoz qo\'shish'}</h3>
+          <h3>{c ? 'Qarzdorni tahrirlash' : 'Yangi qarz yozish'}</h3>
           <button className="modal-close" onClick={onClose}>✕</button>
         </div>
-        <form className="modal-body" onSubmit={handleSubmit}>
-          <div className="relation-toggle" style={{ marginBottom: '14px' }}>
+
+        <form className="modal-body" onSubmit={handleSubmit} style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+          {/* Kim kimga qarzdor */}
+          <div style={{ display: 'flex', gap: '8px' }}>
             <button
               type="button"
-              className={`sel-owed ${relation === 'owed_to_me' ? 'active' : ''}`}
               onClick={() => setRelation('owed_to_me')}
+              style={{
+                flex: 1,
+                padding: '10px 8px',
+                borderRadius: '10px',
+                border: '1.5px solid',
+                borderColor: relation === 'owed_to_me' ? '#1F6E5C' : 'var(--border)',
+                background: relation === 'owed_to_me' ? 'rgba(31, 110, 92, 0.15)' : 'var(--surface-2)',
+                color: relation === 'owed_to_me' ? '#1F6E5C' : 'var(--ink)',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
             >
-              U menga qarzdor
-              <span className="small">Masalan: do'kon mijozi, xaridor</span>
+              🟢 U menga qarzdor
             </button>
             <button
               type="button"
-              className={`sel-iowe ${relation === 'i_owe' ? 'active' : ''}`}
               onClick={() => setRelation('i_owe')}
+              style={{
+                flex: 1,
+                padding: '10px 8px',
+                borderRadius: '10px',
+                border: '1.5px solid',
+                borderColor: relation === 'i_owe' ? '#E04836' : 'var(--border)',
+                background: relation === 'i_owe' ? 'rgba(224, 72, 54, 0.15)' : 'var(--surface-2)',
+                color: relation === 'i_owe' ? '#E04836' : 'var(--ink)',
+                fontWeight: 700,
+                fontSize: '13px',
+                cursor: 'pointer'
+              }}
             >
-              Men unga qarzdorman
-              <span className="small">Masalan: ta'minotchi, diller</span>
+              🔴 Men qarzdorman
             </button>
           </div>
 
-          <div style={{ display: 'grid', gridTemplateColumns: '1.4fr 1fr', gap: '12px' }}>
-            <div className="form-field">
-              <label>Mijoz Ism-familiyasi *</label>
-              <input
-                type="text"
-                placeholder="Masalan: Aziz Karimov"
-                value={name}
-                onChange={e => setName(e.target.value)}
-                required
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Telefon raqami</label>
-              <input
-                type="text"
-                placeholder="+998 90 123 45 67"
-                value={phone}
-                onChange={e => setPhone(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-field">
-              <label>Mijoz toifasi</label>
-              <select value={category} onChange={e => setCategory(e.target.value)}>
-                {CLIENT_CATEGORIES.map(cat => (
-                  <option key={cat} value={cat}>{cat}</option>
-                ))}
-              </select>
-            </div>
-
-            <div className="form-field">
-              <label>Qarz limiti ({db.currency})</label>
-              <input
-                type="number"
-                placeholder="Masalan: 3000000"
-                value={creditLimit}
-                onChange={e => setCreditLimit(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '12px' }}>
-            <div className="form-field">
-              <label>Manzil yoki hudud</label>
-              <input
-                type="text"
-                placeholder="Masalan: Chilonzor, 12-uy"
-                value={address}
-                onChange={e => setAddress(e.target.value)}
-              />
-            </div>
-
-            <div className="form-field">
-              <label>Pasport / ID seriya (ixtiyoriy)</label>
-              <input
-                type="text"
-                placeholder="Masalan: AA 1234567"
-                value={passport}
-                onChange={e => setPassport(e.target.value)}
-              />
-            </div>
-          </div>
-
-          <div className="form-field">
-            <label>Qo'shimcha eslatma / Izoh</label>
-            <textarea
-              placeholder="Mijoz haqida foydali ma'lumotlar..."
-              value={note}
-              onChange={e => setNote(e.target.value)}
-              rows={2}
+          {/* Ismi */}
+          <div className="form-field" style={{ margin: 0 }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>
+              Ismi-sharifi *
+            </label>
+            <input
+              type="text"
+              placeholder="Masalan: Alisher Vohidov"
+              value={name}
+              onChange={e => setName(e.target.value)}
+              required
+              autoFocus
+              style={{ padding: '11px 13px', fontSize: '14px', borderRadius: '10px' }}
             />
           </div>
 
-          <div className="modal-actions">
-            <button type="button" className="btn btn-outline" onClick={onClose}>Bekor qilish</button>
-            <button type="submit" className="btn btn-gold">{c ? 'Saqlash' : "Mijozni qo'shish"}</button>
+          {/* Manzili */}
+          <div className="form-field" style={{ margin: 0 }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>
+              Manzili
+            </label>
+            <input
+              type="text"
+              placeholder="Masalan: Chilonzor 9, 12-uy yoki Qishloq"
+              value={address}
+              onChange={e => setAddress(e.target.value)}
+              style={{ padding: '11px 13px', fontSize: '14px', borderRadius: '10px' }}
+            />
+          </div>
+
+          {/* Telefoni */}
+          <div className="form-field" style={{ margin: 0 }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>
+              Telefon raqami (ixtiyoriy)
+            </label>
+            <input
+              type="tel"
+              placeholder="+998 90 123 45 67"
+              value={phone}
+              onChange={e => setPhone(e.target.value)}
+              style={{ padding: '11px 13px', fontSize: '14px', borderRadius: '10px' }}
+            />
+          </div>
+
+          {/* Qarz summasi (agar yangi bo'lsa) */}
+          {!c && (
+            <div className="form-field" style={{ margin: 0 }}>
+              <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>
+                Qarz summasi (so'mda) *
+              </label>
+              <input
+                type="number"
+                min="0"
+                step="any"
+                placeholder="Masalan: 250000"
+                value={initialDebt}
+                onChange={e => setInitialDebt(e.target.value)}
+                style={{ padding: '11px 13px', fontSize: '16px', fontWeight: 700, borderRadius: '10px' }}
+              />
+            </div>
+          )}
+
+          {/* Izoh */}
+          <div className="form-field" style={{ margin: 0 }}>
+            <label style={{ fontSize: '13px', fontWeight: 700, color: 'var(--ink)', marginBottom: '4px' }}>
+              Nima uchun berilgan / Izoh
+            </label>
+            <input
+              type="text"
+              placeholder="Masalan: 2 qop un, telefon uchun..."
+              value={note}
+              onChange={e => setNote(e.target.value)}
+              style={{ padding: '11px 13px', fontSize: '14px', borderRadius: '10px' }}
+            />
+          </div>
+
+          <div style={{ display: 'flex', gap: '10px', marginTop: '8px' }}>
+            <button
+              type="button"
+              className="btn btn-outline"
+              style={{ flex: 1, minHeight: '44px' }}
+              onClick={onClose}
+            >
+              Bekor qilish
+            </button>
+            <button
+              type="submit"
+              className="btn btn-gold"
+              style={{ flex: 1.5, minHeight: '44px', fontWeight: 800 }}
+            >
+              ✓ Saqlash
+            </button>
           </div>
         </form>
       </div>

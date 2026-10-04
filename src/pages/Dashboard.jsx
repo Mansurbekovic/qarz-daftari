@@ -1,298 +1,294 @@
 import React, { useState } from 'react';
 import { useApp } from '../contexts/AppContext';
-import { fmtMoney, fmtDate, initials } from '../utils/helpers';
+import { fmtMoney, initials } from '../utils/helpers';
 
-export default function Dashboard({ onOpenAddClient }) {
-  const { db, totals, totalCardBalance, navigate, clientBalance, clientIsOverdue } = useApp();
+export default function Dashboard({ onOpenAddClient, onOpenTxModal }) {
+  const { db, totals, navigate, clientBalance, searchQuery, setSearchQuery } = useApp();
+  const [filter, setFilter] = useState('all'); // 'all' | 'owed' | 'iowe' | 'clean'
 
   if (!db) return null;
 
   const t = totals();
-  const recent = [...(db.transactions || [])].sort((a, b) => new Date(b.date) - new Date(a.date)).slice(0, 6);
-  const overdueClients = (db.clients || []).filter(c => clientIsOverdue(c.id));
-  const branches = db?.branches || [];
-  const currentBranch = branches.find(b => b.id === (db?.currentBranchId || 'main')) || branches[0];
+  const clients = db.clients || [];
 
-  // Currency converter state
-  const [usdRate] = useState(db?.exchangeRate || 12850);
-  const [usdInput, setUsdInput] = useState('');
-  const [uzsInput, setUzsInput] = useState('');
+  // Filtrlash va qidiruv
+  let list = clients.slice();
 
-  const handleUsdChange = (val) => {
-    setUsdInput(val);
-    if (!val || isNaN(val)) setUzsInput('');
-    else setUzsInput(Math.round(Number(val) * usdRate));
-  };
+  if (searchQuery && searchQuery.trim()) {
+    const q = searchQuery.toLowerCase().trim();
+    list = list.filter(c =>
+      (c.name || '').toLowerCase().includes(q) ||
+      (c.address || '').toLowerCase().includes(q) ||
+      (c.phone || '').includes(q)
+    );
+  }
 
-  const handleUzsChange = (val) => {
-    setUzsInput(val);
-    if (!val || isNaN(val)) setUsdInput('');
-    else setUsdInput((Number(val) / usdRate).toFixed(2));
-  };
+  if (filter === 'owed') {
+    list = list.filter(c => c.relation !== 'i_owe' && clientBalance(c.id) > 0);
+  } else if (filter === 'iowe') {
+    list = list.filter(c => c.relation === 'i_owe' && clientBalance(c.id) > 0);
+  } else if (filter === 'clean') {
+    list = list.filter(c => clientBalance(c.id) === 0);
+  }
 
-  const txLabel = (tx, client) => {
-    const iowe = client && client.relation === 'i_owe';
-    if (tx.type === 'debt') return iowe ? 'Qarz oldim' : 'Qarz berdim';
-    return iowe ? 'Qarzni qaytardim' : "To'lov qabul qildim";
-  };
+  // Qarz summasiga ko'ra saralash (eng kattasi tepada)
+  list.sort((a, b) => Math.abs(clientBalance(b.id)) - Math.abs(clientBalance(a.id)));
 
   return (
-    <div>
-      {/* Branch & Subscription Header Strip */}
+    <div style={{ maxWidth: '900px', margin: '0 auto' }}>
+      {/* 1. Asosiy 3 ta ko'rsatkich */}
       <div style={{
-        background: 'var(--surface-2)',
-        border: '1px solid var(--border)',
-        borderRadius: '14px',
-        padding: '12px 18px',
-        marginBottom: '20px',
-        display: 'flex',
-        justifyContent: 'space-between',
-        alignItems: 'center',
-        flexWrap: 'wrap',
-        gap: '12px'
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+        gap: '12px',
+        marginBottom: '20px'
       }}>
-        <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
-          <span style={{ fontSize: '20px' }}>🏪</span>
-          <div>
-            <div style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
-              FAOL SAVDO NUQTASI
-            </div>
-            <div style={{ fontWeight: 800, fontSize: '14px' }}>
-              {currentBranch?.name || 'Bosh savdo markazi'}
-              {branches.length > 1 && (
-                <span style={{ fontSize: '12px', color: 'var(--gold)', marginLeft: '6px', cursor: 'pointer' }} onClick={() => navigate('branches')}>
-                  ({branches.length} ta filial) ⇄
-                </span>
-              )}
-            </div>
+        {/* Menga qarzdorlar */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1.5px solid rgba(31, 110, 92, 0.3)',
+          borderRadius: '16px',
+          padding: '16px 18px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            🟢 Menga qarzdorlar
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#1F6E5C', margin: '4px 0 2px' }}>
+            {fmtMoney(t.owedToMe, db.currency || "so'm")}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--muted)' }}>
+            Mijozlar sizga berishi kerak
           </div>
         </div>
 
-        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+        {/* Men qarzdorman */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1.5px solid rgba(224, 72, 54, 0.3)',
+          borderRadius: '16px',
+          padding: '16px 18px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            🔴 Men qarzdorman
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: '#E04836', margin: '4px 0 2px' }}>
+            {fmtMoney(t.iOwe, db.currency || "so'm")}
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--muted)' }}>
+            Siz boshqalarga berishingiz kerak
+          </div>
+        </div>
+
+        {/* Jami odamlar */}
+        <div style={{
+          background: 'var(--surface)',
+          border: '1.5px solid var(--border)',
+          borderRadius: '16px',
+          padding: '16px 18px',
+          boxShadow: '0 4px 12px rgba(0, 0, 0, 0.05)'
+        }}>
+          <div style={{ fontSize: '12px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+            👥 Jami daftardagilar
+          </div>
+          <div style={{ fontSize: '22px', fontWeight: 800, color: 'var(--ink)', margin: '4px 0 2px' }}>
+            {clients.length} kishi
+          </div>
+          <div style={{ fontSize: '11.5px', color: 'var(--muted)' }}>
+            Ro'yxatga olinganlar soni
+          </div>
+        </div>
+      </div>
+
+      {/* 2. Boshqaruv: Filtrlar va Qarz yozish tugmasi */}
+      <div style={{
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'space-between',
+        flexWrap: 'wrap',
+        gap: '10px',
+        marginBottom: '16px'
+      }}>
+        {/* Filtr chiplari */}
+        <div style={{ display: 'flex', gap: '6px', overflowX: 'auto', paddingBottom: '4px', maxWidth: '100%' }}>
           <button
-            className="btn btn-sm btn-outline"
-            style={{ fontSize: '12px', padding: '5px 10px', display: 'flex', alignItems: 'center', gap: '5px' }}
-            onClick={() => navigate('subscriptions')}
+            type="button"
+            className={`chip ${filter === 'all' ? 'active' : ''}`}
+            onClick={() => setFilter('all')}
+            style={{ fontWeight: 700 }}
           >
-            <span>👑</span>
-            <span>{(db?.subscription?.plan || 'pro').toUpperCase()} TARIF</span>
+            Barchasi ({clients.length})
           </button>
           <button
-            className="btn btn-sm btn-gold"
+            type="button"
+            className={`chip ${filter === 'owed' ? 'active' : ''}`}
+            onClick={() => setFilter('owed')}
+            style={{ fontWeight: 700 }}
+          >
+            🟢 Menga qarzdor
+          </button>
+          <button
+            type="button"
+            className={`chip ${filter === 'iowe' ? 'active' : ''}`}
+            onClick={() => setFilter('iowe')}
+            style={{ fontWeight: 700 }}
+          >
+            🔴 Men qarzdorman
+          </button>
+          <button
+            type="button"
+            className={`chip ${filter === 'clean' ? 'active' : ''}`}
+            onClick={() => setFilter('clean')}
+            style={{ fontWeight: 700 }}
+          >
+            ✓ Qarz yo'qlar
+          </button>
+        </div>
+
+        {/* Yangi qarz yozish tugmasi */}
+        <button
+          type="button"
+          className="btn btn-gold"
+          onClick={onOpenAddClient}
+          style={{ padding: '10px 18px', fontWeight: 800, fontSize: '14px', borderRadius: '12px' }}
+        >
+          ➕ Yangi Qarz Yozish
+        </button>
+      </div>
+
+      {/* 3. Qarzdorlar ro'yxati */}
+      {list.length === 0 ? (
+        <div style={{
+          textAlign: 'center',
+          padding: '48px 20px',
+          background: 'var(--surface)',
+          borderRadius: '16px',
+          border: '1.5px dashed var(--border)'
+        }}>
+          <div style={{ fontSize: '42px', marginBottom: '10px' }}>📒</div>
+          <h3 style={{ margin: '0 0 6px', fontSize: '17px' }}>
+            {searchQuery ? 'Qidiruv bo\'yicha hech kim topilmadi' : 'Hozircha hech qanday qarz yo\'q'}
+          </h3>
+          <p style={{ color: 'var(--muted)', fontSize: '13px', margin: '0 0 16px' }}>
+            {searchQuery ? 'Boshqa ism yoki manzilni qidirib ko\'ring' : 'Birinchi qarzni yozish uchun quyidagi tugmani bosing'}
+          </p>
+          <button
+            type="button"
+            className="btn btn-gold"
             onClick={onOpenAddClient}
+            style={{ fontWeight: 800 }}
           >
-            + Yangi Mijoz
+            ➕ Yangi qarz yozish
           </button>
-        </div>
-      </div>
-
-      {/* Main Stat Grid */}
-      <div className="stat-grid">
-        <div className="stat-card">
-          <div className="stat-label">Menga qarzdorlar</div>
-          <div className="stat-value rust">{fmtMoney(t.owedToMe, db.currency)}</div>
-          <div className="stat-note">Mijozlar sizga qarzdor</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Men qarzdorman</div>
-          <div className="stat-value teal">{fmtMoney(t.iOwe, db.currency)}</div>
-          <div className="stat-note">Siz boshqalarga qarzdorsiz</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Sof holat</div>
-          <div className={`stat-value ${t.net >= 0 ? 'gold' : 'rust'}`}>{fmtMoney(t.net, db.currency)}</div>
-          <div className="stat-note">Qarzdorlik − qarzim</div>
-        </div>
-        <div className="stat-card">
-          <div className="stat-label">Kartalarimda</div>
-          <div className="stat-value teal">{fmtMoney(totalCardBalance(), db.currency)}</div>
-          <div className="stat-note">{db.cards.length} ta karta ulangan</div>
-        </div>
-      </div>
-
-      {/* Enterprise Quick Hub (5x Faster Navigation & Functions) */}
-      <div style={{ marginTop: '20px', marginBottom: '20px' }}>
-        <div className="section-title" style={{ marginBottom: '10px' }}>
-          ⚡ Tezkor Biznes Modullari
-        </div>
-        <div className="quick-hub-grid" style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(130px, 1fr))', gap: '10px' }}>
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('suppliers')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🏭</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Ta'minotchilar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Optom kirim</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('invoices')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>📑</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Fakturalar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Schet-faktura</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('branches')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🏢</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Filiallar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Do'konlar tarmog'i</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('employees')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>👥</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Xodimlar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Oylik & Avans</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('reminders')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🔔</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Eslatmalar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>SMS & Telegram</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('reports')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>📊</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Foyda-Zarar</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>P&L Analitika</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('clientPortal')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>🌐</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>Mijoz Portali</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Ochiq to'lov</div>
-          </div>
-
-          <div
-            className="settings-card"
-            style={{ textAlign: 'center', padding: '14px 10px', cursor: 'pointer', transition: 'transform 0.15s ease' }}
-            onClick={() => navigate('subscriptions')}
-          >
-            <div className="hub-icon" style={{ fontSize: '24px', marginBottom: '4px' }}>👑</div>
-            <div className="hub-title" style={{ fontWeight: 700, fontSize: '12.5px' }}>PRO & SMS</div>
-            <div className="hub-sub" style={{ fontSize: '10.5px', color: 'var(--muted)' }}>Tariflar do'koni</div>
-          </div>
-        </div>
-      </div>
-
-      {/* Currency Converter Widget */}
-      <div className="settings-card" style={{ marginTop: '20px', marginBottom: '20px', background: 'var(--surface-2)' }}>
-        <div className="section-title" style={{ marginTop: 0, justifyContent: 'space-between' }}>
-          <span>💱 Jonli Valyuta Kalkulyatori (USD / UZS)</span>
-          <span style={{ fontSize: '12px', color: 'var(--muted)', fontWeight: 600 }}>1 USD = {fmtMoney(usdRate, "so'm")}</span>
-        </div>
-        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))', gap: '14px', alignItems: 'center' }}>
-          <div className="form-field" style={{ marginBottom: 0 }}>
-            <label>AQSH Dollari ($ USD)</label>
-            <input
-              type="number"
-              placeholder="100"
-              value={usdInput}
-              onChange={e => handleUsdChange(e.target.value)}
-            />
-          </div>
-          <div style={{ textAlign: 'center', fontSize: '18px', fontWeight: 800, color: 'var(--gold)' }}>
-            ⇄
-          </div>
-          <div className="form-field" style={{ marginBottom: 0 }}>
-            <label>O'zbek so'mi (UZS)</label>
-            <input
-              type="number"
-              placeholder="1 285 000"
-              value={uzsInput}
-              onChange={e => handleUzsChange(e.target.value)}
-            />
-          </div>
-        </div>
-      </div>
-
-      {/* Overdue Alert */}
-      {t.overdueCount > 0 && db.notifications && (
-        <>
-          <div className="section-title">
-            ⚠ Muddati o'tgan qarzlar ({t.overdueCount} ta)
-            <span className="link" onClick={() => navigate('reminders')}>Eslatmalarni boshqarish</span>
-          </div>
-          <div className="ledger-card">
-            {overdueClients.slice(0, 5).map(c => {
-              const bal = clientBalance(c.id);
-              return (
-                <div
-                  key={c.id}
-                  className="ledger-row type-debt"
-                  style={{ cursor: 'pointer' }}
-                  onClick={() => navigate('clientDetail', c.id)}
-                >
-                  <div className="avatar">{initials(c.name)}</div>
-                  <div className="row-main">
-                    <div className="row-title">{c.name}</div>
-                    <div className="row-sub">{c.phone || 'Telefon kiritilmagan'}</div>
-                  </div>
-                  <div className="row-amount rust">{fmtMoney(bal, db.currency)}</div>
-                </div>
-              );
-            })}
-          </div>
-        </>
-      )}
-
-      {/* Recent Transactions */}
-      <div className="section-title">
-        So'nggi tranzaksiyalar
-        <span className="link" onClick={() => navigate('transactions')}>Barchasini ko'rish</span>
-      </div>
-
-      {recent.length === 0 ? (
-        <div className="empty-state">
-          <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-            <rect x="3" y="4" width="18" height="16" rx="2" />
-            <path d="M7 8h10M7 12h10M7 16h6" />
-          </svg>
-          <div className="t">Hali tranzaksiya yo'q</div>
-          <div className="s">Mijoz qo'shib, birinchi qarz yoki to'lovni kiriting.</div>
         </div>
       ) : (
-        <div className="ledger-card">
-          {recent.map(tx => {
-            const c = db.clients.find(cl => cl.id === tx.clientId);
-            const lbl = txLabel(tx, c);
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {list.map(c => {
+            const bal = clientBalance(c.id);
+            const iowe = c.relation === 'i_owe';
+
             return (
               <div
-                key={tx.id}
-                className={`ledger-row type-${tx.type}`}
-                style={{ cursor: 'pointer' }}
-                onClick={() => navigate('clientDetail', tx.clientId)}
+                key={c.id}
+                style={{
+                  background: 'var(--surface)',
+                  border: '1px solid var(--border)',
+                  borderRadius: '14px',
+                  padding: '14px 16px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'space-between',
+                  gap: '12px',
+                  boxShadow: '0 2px 8px rgba(0,0,0,0.03)',
+                  transition: 'transform 0.15s ease'
+                }}
               >
-                <div className="avatar">{c ? initials(c.name) : '?'}</div>
-                <div className="row-main">
-                  <div className="row-title">{c ? c.name : "O'chirilgan mijoz"}</div>
-                  <div className="row-sub">{lbl} · {fmtDate(tx.date)}</div>
+                {/* Chap taraf: Avatar, Ism, Manzil, Telefon */}
+                <div
+                  style={{ display: 'flex', alignItems: 'center', gap: '12px', flex: 1, minWidth: 0, cursor: 'pointer' }}
+                  onClick={() => navigate('clientDetail', c.id)}
+                >
+                  <div style={{
+                    width: '44px',
+                    height: '44px',
+                    borderRadius: '12px',
+                    background: iowe ? 'rgba(224, 72, 54, 0.12)' : (bal > 0 ? 'rgba(31, 110, 92, 0.12)' : 'var(--surface-2)'),
+                    color: iowe ? '#E04836' : (bal > 0 ? '#1F6E5C' : 'var(--muted)'),
+                    fontWeight: 800,
+                    fontSize: '16px',
+                    display: 'flex',
+                    alignItems: 'center',
+                    justifyContent: 'center',
+                    flexShrink: 0
+                  }}>
+                    {initials(c.name)}
+                  </div>
+
+                  <div style={{ minWidth: 0, flex: 1 }}>
+                    <div style={{ fontSize: '15.5px', fontWeight: 800, color: 'var(--ink)', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                      {c.name}
+                    </div>
+
+                    <div style={{ fontSize: '12.5px', color: 'var(--muted)', marginTop: '2px', display: 'flex', gap: '8px', flexWrap: 'wrap' }}>
+                      {c.address && (
+                        <span>📍 {c.address}</span>
+                      )}
+                      {c.phone && (
+                        <span>📞 {c.phone}</span>
+                      )}
+                      {c.note && !c.address && !c.phone && (
+                        <span>📝 {c.note}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
-                <div className={`row-amount ${tx.type === 'debt' ? 'rust' : 'gold'}`}>
-                  {tx.type === 'debt' ? '+' : '−'}{fmtMoney(tx.amount, db.currency)}
+
+                {/* O'ng taraf: Qarz summasi va Tezkor tugmalar */}
+                <div style={{ display: 'flex', alignItems: 'center', gap: '10px' }}>
+                  <div
+                    style={{ textAlign: 'right', cursor: 'pointer' }}
+                    onClick={() => navigate('clientDetail', c.id)}
+                  >
+                    <div style={{
+                      fontSize: '17px',
+                      fontWeight: 800,
+                      color: bal === 0 ? 'var(--muted)' : (iowe ? '#E04836' : '#1F6E5C')
+                    }}>
+                      {bal === 0 ? "Qarzi yo'q" : fmtMoney(Math.abs(bal), db.currency || "so'm")}
+                    </div>
+                    <div style={{ fontSize: '10.5px', fontWeight: 700, color: 'var(--muted)', textTransform: 'uppercase' }}>
+                      {bal === 0 ? '✓ Tozalangan' : (iowe ? '🔴 Men qarzdor' : '🟢 Menga qarzdor')}
+                    </div>
+                  </div>
+
+                  {/* Tezkor qarz/to'lov tugmalari */}
+                  <div style={{ display: 'flex', gap: '4px' }}>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      title="Qarz yozish"
+                      style={{ padding: '6px 8px', fontSize: '11px', color: '#E04836', borderColor: 'rgba(224,72,54,0.3)' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenTxModal(c.id, 'debt');
+                      }}
+                    >
+                      + Qarz
+                    </button>
+                    <button
+                      type="button"
+                      className="btn btn-sm btn-outline"
+                      title="To'lov olish"
+                      style={{ padding: '6px 8px', fontSize: '11px', color: '#1F6E5C', borderColor: 'rgba(31,110,92,0.3)' }}
+                      onClick={(e) => {
+                        e.stopPropagation();
+                        onOpenTxModal(c.id, 'payment');
+                      }}
+                    >
+                      - To'lov
+                    </button>
+                  </div>
                 </div>
               </div>
             );
