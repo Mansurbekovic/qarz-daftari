@@ -1,32 +1,31 @@
-﻿import React, { useState } from 'react';
-import AdminDashboard from './AdminDashboard';
+import React, { useState } from 'react';
 import AdminUserManagement from './AdminUserManagement';
-import AdminSecurityMonitor from './AdminSecurityMonitor';
-import AdminDatabaseOps from './AdminDatabaseOps';
-import AdminBroadcastOps from './AdminBroadcastOps';
+import AdminFinancialReports from './AdminFinancialReports';
 import AdminAuditLogs from './AdminAuditLogs';
+import AdminSystemSettings from './AdminSystemSettings';
+import AdminAnalytics from './AdminAnalytics';
 import { useApp } from '../../contexts/AppContext';
 
-export default function AdminPanel() {
-  const { isAdmin } = useApp();
-  const [activeTab, setActiveTab] = useState('dashboard'); 
-  // 'dashboard' | 'users' | 'database' | 'broadcast' | 'audit' | 'security'
+export default function AdminPanel({ onBackToNotebook }) {
+  const { isAdmin, currentUser } = useApp();
+  const [activeTab, setActiveTab] = useState('users'); 
+  // 'users' | 'finances' | 'audit' | 'settings' | 'analytics'
 
   if (!isAdmin) {
     return (
-      <div className="empty-state">
-        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.6">
-          <path d="M12 22s8-4 8-10V5l-8-3-8 3v7c0 6 8 10 8 10z" />
-        </svg>
-        <div className="t">Ruxsat Etilmagan Hudud</div>
-        <div className="s">Ushbu sahifaga faqat qarzdorlar.uz Tizim Super Administratori kirishi mumkin.</div>
+      <div style={{ textAlign: 'center', padding: '60px 20px', color: 'var(--muted)' }}>
+        <div style={{ fontSize: '48px', marginBottom: '12px' }}>🔒</div>
+        <h2 style={{ color: '#E04836', margin: '0 0 8px' }}>Ruxsat Etilmagan Hudud</h2>
+        <p style={{ maxWidth: '420px', margin: '0 auto', fontSize: '14px', lineHeight: '1.5' }}>
+          Ushbu sahifaga faqat platforma Administratori kirishi mumkin.
+        </p>
       </div>
     );
   }
 
   return (
-    <div className="admin-container" style={{ paddingBottom: '60px' }}>
-      {/* Header Banner */}
+    <div style={{ maxWidth: '1040px', margin: '0 auto', paddingBottom: '60px' }}>
+      {/* Top Banner with back button */}
       <div style={{
         display: 'flex',
         justifyContent: 'space-between',
@@ -35,89 +34,180 @@ export default function AdminPanel() {
         gap: '12px',
         marginBottom: '20px',
         padding: '16px 20px',
-        borderRadius: '14px',
-        background: 'linear-gradient(135deg, rgba(229,169,60,0.12), rgba(30,58,138,0.2))',
-        border: '1px solid rgba(229,169,60,0.25)'
+        borderRadius: '16px',
+        background: 'linear-gradient(135deg, rgba(212, 160, 23, 0.15), rgba(15, 30, 20, 0.3))',
+        border: '1px solid rgba(212, 160, 23, 0.35)',
+        boxShadow: '0 4px 16px rgba(0,0,0,0.04)'
       }}>
-        <div>
-          <div style={{ fontSize: '18px', fontWeight: 800, color: 'var(--gold, #E5A93C)' }}>
-            ⚡ qarzdorlar.uz — Super Administrator Boshqaruv Markazi
+        <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+          <div style={{
+            width: '44px',
+            height: '44px',
+            borderRadius: '12px',
+            background: 'linear-gradient(135deg, #D4A017 0%, #8A6109 100%)',
+            color: '#fff',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            fontSize: '20px',
+            fontWeight: 900
+          }}>
+            ⚡
           </div>
-          <div style={{ fontSize: '13px', color: 'rgba(255,255,255,0.7)', marginTop: '2px' }}>
-            Multi-tenant do'konlar boshqaruvi, SQLite server operatsiyalari va tizim xavfsizlik konsoli
+          <div>
+            <div style={{ fontSize: '18px', fontWeight: 900, color: 'var(--ink)' }}>
+              Qarz Daftari — Tizim Administratori Boshqaruv Paneli
+            </div>
+            <div style={{ fontSize: '12.5px', color: 'var(--muted)', marginTop: '2px' }}>
+              Barcha foydalanuvchilar, qarzlar balansi, xavfsizlik auditi va tizim sozlamalari markazi
+            </div>
           </div>
         </div>
-        <span style={{
-          padding: '4px 12px',
-          borderRadius: '20px',
-          background: 'rgba(34, 197, 94, 0.2)',
-          color: '#4ade80',
-          fontSize: '12px',
-          fontWeight: 700,
-          border: '1px solid rgba(34, 197, 94, 0.4)'
-        }}>
-          Tizim Holati: Normal
-        </span>
+
+        <div style={{ display: 'flex', alignItems: 'center', gap: '8px' }}>
+          {onBackToNotebook && (
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              onClick={onBackToNotebook}
+              style={{ fontWeight: 800, borderRadius: '9px', background: 'var(--surface)' }}
+            >
+              ← Qarz daftariga qaytish
+            </button>
+          )}
+          <span style={{
+            padding: '5px 12px',
+            borderRadius: '20px',
+            background: 'rgba(31, 110, 92, 0.15)',
+            color: '#1F6E5C',
+            fontSize: '12px',
+            fontWeight: 800,
+            border: '1px solid rgba(31, 110, 92, 0.3)'
+          }}>
+            ● Admin: {currentUser}
+          </span>
+        </div>
       </div>
 
-      {/* Sub-page Navigation Tabs */}
-      <div className="admin-nav-tabs" style={{ display: 'flex', flexWrap: 'wrap', gap: '8px', marginBottom: '24px' }}>
-        <button
-          type="button"
-          className={`admin-tab-btn ${activeTab === 'dashboard' ? 'active' : ''}`}
-          onClick={() => setActiveTab('dashboard')}
-        >
-          📊 Tizim Statistikasi
-        </button>
-
+      {/* 5 Main Admin Pillars Navigation Tabs */}
+      <div style={{
+        display: 'flex',
+        flexWrap: 'wrap',
+        gap: '6px',
+        background: 'var(--surface)',
+        border: '1px solid var(--border)',
+        padding: '6px',
+        borderRadius: '14px',
+        marginBottom: '20px',
+        boxShadow: '0 2px 8px rgba(0,0,0,0.03)'
+      }}>
         <button
           type="button"
           className={`admin-tab-btn ${activeTab === 'users' ? 'active' : ''}`}
           onClick={() => setActiveTab('users')}
+          style={{
+            flex: '1 1 180px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: activeTab === 'users' ? '#D4A017' : 'transparent',
+            color: activeTab === 'users' ? '#fff' : 'var(--muted)',
+            transition: 'all 0.15s ease'
+          }}
         >
-          👥 Do'konlar & Foydalanuvchilar
+          👥 1. Foydalanuvchilar & Do'konlar
         </button>
 
         <button
           type="button"
-          className={`admin-tab-btn ${activeTab === 'database' ? 'active' : ''}`}
-          onClick={() => setActiveTab('database')}
+          className={`admin-tab-btn ${activeTab === 'finances' ? 'active' : ''}`}
+          onClick={() => setActiveTab('finances')}
+          style={{
+            flex: '1 1 180px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: activeTab === 'finances' ? '#D4A017' : 'transparent',
+            color: activeTab === 'finances' ? '#fff' : 'var(--muted)',
+            transition: 'all 0.15s ease'
+          }}
         >
-          🗄️ Baza & Server Xizmati
-        </button>
-
-        <button
-          type="button"
-          className={`admin-tab-btn ${activeTab === 'broadcast' ? 'active' : ''}`}
-          onClick={() => setActiveTab('broadcast')}
-        >
-          📢 Umumiy E'lonlar
+          💰 2. Qarzlar & Moliyaviy Nazorat
         </button>
 
         <button
           type="button"
           className={`admin-tab-btn ${activeTab === 'audit' ? 'active' : ''}`}
           onClick={() => setActiveTab('audit')}
+          style={{
+            flex: '1 1 180px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: activeTab === 'audit' ? '#D4A017' : 'transparent',
+            color: activeTab === 'audit' ? '#fff' : 'var(--muted)',
+            transition: 'all 0.15s ease'
+          }}
         >
-          📝 Audit & Loglar
+          🛡️ 3. Xavfsizlik & Audit Jurnali
         </button>
 
         <button
           type="button"
-          className={`admin-tab-btn ${activeTab === 'security' ? 'active' : ''}`}
-          onClick={() => setActiveTab('security')}
+          className={`admin-tab-btn ${activeTab === 'settings' ? 'active' : ''}`}
+          onClick={() => setActiveTab('settings')}
+          style={{
+            flex: '1 1 180px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: activeTab === 'settings' ? '#D4A017' : 'transparent',
+            color: activeTab === 'settings' ? '#fff' : 'var(--muted)',
+            transition: 'all 0.15s ease'
+          }}
         >
-          🛡️ Qoidalar & Filtrlar
+          ⚙️ 4. Tizim Sozlamalari & SMS
+        </button>
+
+        <button
+          type="button"
+          className={`admin-tab-btn ${activeTab === 'analytics' ? 'active' : ''}`}
+          onClick={() => setActiveTab('analytics')}
+          style={{
+            flex: '1 1 180px',
+            padding: '11px 14px',
+            borderRadius: '10px',
+            border: 'none',
+            fontSize: '13px',
+            fontWeight: 800,
+            cursor: 'pointer',
+            background: activeTab === 'analytics' ? '#D4A017' : 'transparent',
+            color: activeTab === 'analytics' ? '#fff' : 'var(--muted)',
+            transition: 'all 0.15s ease'
+          }}
+        >
+          📈 5. Statistika & Analitika
         </button>
       </div>
 
-      {/* Render Selected Sub-Page */}
-      {activeTab === 'dashboard' && <AdminDashboard />}
+      {/* Render Selected Pillar */}
       {activeTab === 'users' && <AdminUserManagement />}
-      {activeTab === 'database' && <AdminDatabaseOps />}
-      {activeTab === 'broadcast' && <AdminBroadcastOps />}
+      {activeTab === 'finances' && <AdminFinancialReports />}
       {activeTab === 'audit' && <AdminAuditLogs />}
-      {activeTab === 'security' && <AdminSecurityMonitor />}
+      {activeTab === 'settings' && <AdminSystemSettings />}
+      {activeTab === 'analytics' && <AdminAnalytics />}
     </div>
   );
 }

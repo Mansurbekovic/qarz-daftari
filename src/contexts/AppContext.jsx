@@ -571,18 +571,21 @@ export function AppProvider({ children }) {
 
   // Client CRUD
   const addClient = useCallback((client) => {
+    const newClient = { id: uid(), ...client, createdAt: new Date().toISOString() };
     updateDB(prev => ({
       ...prev,
-      clients: [...prev.clients, { id: uid(), ...client, createdAt: new Date().toISOString() }]
+      clients: [...prev.clients, newClient]
     }));
-  }, [updateDB]);
+    addSecurityLog('ADD_CLIENT', currentUser, `Mijoz qo'shildi: ${client.name} (${client.address || 'manzilsiz'})`, 'info');
+  }, [updateDB, currentUser, addSecurityLog]);
 
   const updateClient = useCallback((id, updates) => {
     updateDB(prev => ({
       ...prev,
       clients: prev.clients.map(c => c.id === id ? { ...c, ...updates } : c)
     }));
-  }, [updateDB]);
+    addSecurityLog('UPDATE_CLIENT', currentUser, `Mijoz ma'lumotlari tahrirlandi: ID ${id}`, 'info');
+  }, [updateDB, currentUser, addSecurityLog]);
 
   const deleteClient = useCallback((id) => {
     updateDB(prev => ({
@@ -590,7 +593,8 @@ export function AppProvider({ children }) {
       clients: prev.clients.filter(c => c.id !== id),
       transactions: prev.transactions.filter(t => t.clientId !== id)
     }));
-  }, [updateDB]);
+    addSecurityLog('DELETE_CLIENT', currentUser, `Mijoz va uning barcha qarzlari o'chirildi: ID ${id}`, 'warning');
+  }, [updateDB, currentUser, addSecurityLog]);
 
   // Transaction CRUD with Anti-Bug / Anti-Abuse validation & Auto Stock Update
   const addTransaction = useCallback((tx) => {
@@ -640,6 +644,14 @@ export function AppProvider({ children }) {
       }
       return next;
     });
+
+    const isDebt = tx.type === 'debt';
+    addSecurityLog(
+      isDebt ? 'ADD_DEBT' : 'ADD_PAYMENT',
+      currentUser,
+      `${isDebt ? 'Qarz kiritildi' : "To'lov qabul qilindi"}: ${tx.amount} so'm (${tx.note || 'izohsiz'})`,
+      'info'
+    );
   }, [updateDB, systemConfig, currentUser, addSecurityLog, toast]);
 
   const deleteTransaction = useCallback((id) => {
@@ -647,7 +659,8 @@ export function AppProvider({ children }) {
       ...prev,
       transactions: prev.transactions.filter(t => t.id !== id)
     }));
-  }, [updateDB]);
+    addSecurityLog('DELETE_DEBT', currentUser, `Qarz/to'lov yozuvi o'chirildi: ID ${id}`, 'warning');
+  }, [updateDB, currentUser, addSecurityLog]);
 
   // Warehouse Products CRUD
   const addProduct = useCallback((prod) => {
@@ -1471,6 +1484,58 @@ export function AppProvider({ children }) {
     toast(`${targetUsername} hisobi o'chirildi`);
   }, [accounts, currentUser, saveAccountsToStorage, addSecurityLog, addNotification, toast]);
 
+  // Admin Create User
+  const adminCreateUser = useCallback(async (username, businessName, email, password, role = 'user') => {
+    const u = (username || '').trim().toLowerCase().replace(/\s+/g, '');
+    if (!u) throw new Error('Foydalanuvchi nomini kiriting.');
+    if (!password || password.length < 4) throw new Error('Parol kamida 4 ta belgidan iborat bo\'lsin.');
+
+    let freshAccounts = accounts;
+    if (freshAccounts.length === 0) {
+      freshAccounts = await loadAccountsFromStorage();
+    }
+    if (freshAccounts.some(a => a.username.toLowerCase() === u)) {
+      throw new Error('Bu foydalanuvchi nomi band.');
+    }
+
+    const passHash = await sha256(password);
+    const newAccount = {
+      username: u,
+      businessName: businessName?.trim() || u,
+      email: (email || '').trim().toLowerCase(),
+      passHash,
+      role: role || 'user',
+      status: 'active',
+      createdAt: new Date().toISOString()
+    };
+    const newAccounts = [...freshAccounts, newAccount];
+    setAccounts(newAccounts);
+    await saveAccountsToStorage(newAccounts);
+
+    try {
+      await fetch(`${getApiBase()}/api/users`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(newAccount)
+      });
+    } catch (e) { /* ignore */ }
+
+    const initialDb = defaultDB();
+    initialDb.businessName = businessName?.trim() || u;
+    try {
+      await storage.set(dbKeyFor(u), JSON.stringify(initialDb), false);
+      await fetch(`${getApiBase()}/api/users/${u}/db`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(initialDb)
+      });
+    } catch (e) { /* ignore */ }
+
+    addSecurityLog('ADMIN_CREATE_USER', currentUser, `Yangi foydalanuvchi yaratildi: ${u} (${role})`, 'info');
+    toast(`Foydalanuvchi ${u} muvaffaqiyatli yaratildi`);
+    return newAccount;
+  }, [accounts, currentUser, loadAccountsFromStorage, saveAccountsToStorage, addSecurityLog, toast]);
+
   // Init
   useEffect(() => {
     async function init() {
@@ -1539,6 +1604,7 @@ export function AppProvider({ children }) {
     wipeData, exportData, importData, exportCards, importCards,
     updateDB,
     // Admin functions
+    adminCreateUser,
     adminBlockUser, adminUnblockUser, adminResetUserPassword, adminResetUserPin,
     adminDeleteUser, loadAccountsFromStorage,
     toggleSystemLockdown, toggleMaintenance, updateSystemConfigValues, addSecurityLog,
